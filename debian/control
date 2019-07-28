@@ -1,0 +1,36 @@
+Source: palemoon
+Section: web
+Priority: optional
+Maintainer: Roberto Guardato <team@powerprogress.org>
+Bugs: mailto: <bts@powerprogress.org>
+Build-Depends: debhelper (>= 9),
+        gcc (>= 4.9),
+        autoconf2.13,
+        python (>= 2.7),
+        unzip,
+        zip,
+        pkg-config,
+        libgconf2-dev (>= 1.2.1),
+        libgtk2.0-dev (>= 2.14),
+        libdbus-1-dev (>=0.60),
+        libdbus-glib-1-dev (>= 0.60),
+        yasm (>= 1.1),
+        libasound2-dev,
+        libpulse-dev,
+        libxt-dev,
+        mesa-common-dev,
+        libx11-xcb-dev,
+Standards-Version: 3.9.6
+Homepage: http://www.palemoon.org/
+
+Package: palemoon
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         libavcodec54 | libavcodec-extra54 |libavcodec55 | libavcodec-extra55 | libavcodec56 | libavcodec-extra56 | libavcodec57 | libavcodec-extra57 | libavcodec58 | libavcodec-extra58 | libavcodec-ffmpeg56 | libavcodec-ffmpeg-extra56
+Provides: x-www-browser
+Conflicts: palemoon
+Replaces: palemoon
+Description: Firefox-based, efficient and easy to use web browser
+ Pale Moon offers selected features and optimizations to maximize the browser's speed, stability and user experience, while maintaining
+ compatibility with the thousands of Firefox extensions you have come 
+ to love and rely on.

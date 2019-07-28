@@ -1,0 +1,32 @@
+#!/usr/bin/make -f
+
+export SHELL=/bin/bash
+
+%:
+	dh $@
+
+override_dh_auto_clean:
+	rm -f mozconfig
+	dh_auto_clean
+	find . -name '*.pyc' -delete
+
+override_dh_auto_configure:
+	cp debian/mozconfig mozconfig
+
+override_dh_auto_build:
+	chmod 764 build/autoconf/config.guess
+	chmod 764 build/autoconf/config.sub
+	make -f client.mk build
+	
+override_dh_auto_install:
+	make -f client.mk DESTDIR=$$(pwd)/debian/palemoon prefix=/usr \
+        installdir=/usr/lib/palemoon \
+        sdkdir=/usr/lib/palemoon-devel install
+	rm -rf $$(pwd)/debian/palemoon/usr/share/idl
+	rm -rf $$(pwd)/debian/palemoon/lib/palemoon-devel
+	rm -rf $$(pwd)/debian/palemoon/usr/include
+# remove vestigial duplicate file
+	rm -rf $$(pwd)/debian/palemoon/usr/lib/palemoon/palemoon-bin
+
+override_dh_shlibdeps:
+	dh_shlibdeps -l /usr/lib/palemoon

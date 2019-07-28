@@ -1,0 +1,6 @@
+palemoon (28.2019.04.24) UNRELEASED; urgency=medium
+
+  [ rt1k ]
+  * initial port based on wicknix PPC32 repository
+
+ -- Roberto Guardato <team@powerprogress.org>  Fri, 26 Jul 2019 17:00:03 +0000
