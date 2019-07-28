@@ -3958,6 +3958,38 @@ if test "$MOZ_GFX_OPTIMIZE_MOBILE"; then
     AC_DEFINE(MOZ_IGNORE_PAINT_WILL_RESAMPLE)
 fi
 
+dnl ==================================
+dnl AltiVec/VMX specific optimizations
+dnl ==================================
+MOZ_ARG_ENABLE_BOOL(tenfourfox-vmx,
+[  --enable-tenfourfox-vmx
+                  Turn on AltiVec-VMX specific options for TenFourFox],
+    TENFOURFOX_VMX=1)
+
+AC_SUBST(TENFOURFOX_VMX)
+
+if test "$TENFOURFOX_VMX"; then
+    AC_DEFINE(TENFOURFOX_VMX)
+    VPX_VMX_ASM=1
+    AC_DEFINE(VPX_VMX_ASM)
+fi
+
+AC_SUBST(VPX_VMX_ASM)
+
+dnl =========================
+dnl G5 specific optimizations
+dnl =========================
+MOZ_ARG_ENABLE_BOOL(tenfourfox-g5,
+[  --enable-tenfourfox-g5
+                  Turn on G5 specific options for TenFourFox],
+    TENFOURFOX_G5=1)
+
+AC_SUBST(TENFOURFOX_G5)
+
+if test "$TENFOURFOX_G5"; then
+    AC_DEFINE(TENFOURFOX_G5)
+fi
+
 dnl ========================================================
 dnl = Enable code optimization. ON by default.
 dnl ========================================================

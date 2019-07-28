@@ -3,9 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "../../mfbt/EndianUtils.h"
 #include "gfx2DGlue.h"
-#include "../2d/Swizzle.h"
 
 #include "YCbCrUtils.h"
 #include "yuv_convert.h"
@@ -120,7 +118,7 @@ ConvertYCbCrToRGB(const layers::PlanarYCbCrData& aData,
                         aData.mCbCrStride,
                         aStride,
                         yuvtype,
-                        aData.mYUVColorSpace,
+                        ROTATE_0,
                         FILTER_BILINEAR);
   } else { // no prescale
 #if defined(HAVE_YCBCR_TO_RGB565)
@@ -137,7 +135,7 @@ ConvertYCbCrToRGB(const layers::PlanarYCbCrData& aData,
                            aData.mCbCrStride,
                            aStride,
                            yuvtype);
-    } else // aDestFormat != SurfaceFormat::R5G6B5_UINT16
+    } else // aDestFormat != gfxImageFormat::RGB16_565
 #endif
       ConvertYCbCrToRGB32(aData.mYChannel, //
                           aData.mCbChannel,
@@ -150,19 +148,8 @@ ConvertYCbCrToRGB(const layers::PlanarYCbCrData& aData,
                           aData.mYStride,
                           aData.mCbCrStride,
                           aStride,
-                          yuvtype,
-                          aData.mYUVColorSpace);
+                          yuvtype);
   }
-
-/* this need to be fixed!
-#ifdef MOZ_BIG_ENDIAN
-  // libyuv makes endian-correct result, which needs to be swapped to BGRX
-  if (aDestFormat != SurfaceFormat::R5G6B5_UINT16)
-    gfx::SwizzleData(aDestBuffer, aStride, gfx::SurfaceFormat::X8R8G8B8,
-                     aDestBuffer, aStride, gfx::SurfaceFormat::B8G8R8X8,
-                     aData.mPicSize);
-#endif*/
-
 }
 
 } // namespace gfx

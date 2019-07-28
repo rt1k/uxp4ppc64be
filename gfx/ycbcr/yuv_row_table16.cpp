@@ -1,4 +1,5 @@
 // Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2018 Cameron Kaiser and Contributors to TenFourFox.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +7,13 @@
 
 extern "C" {
 
+// To make an optimized AltiVec load, emit everything twice for a full
+// 16 bytes even though we only make use of the first 64-bits.
 #define RGBY(i) { \
+  static_cast<int16>(1.164 * 64 * (i - 16) + 0.5), \
+  static_cast<int16>(1.164 * 64 * (i - 16) + 0.5), \
+  static_cast<int16>(1.164 * 64 * (i - 16) + 0.5), \
+  0, \
   static_cast<int16>(1.164 * 64 * (i - 16) + 0.5), \
   static_cast<int16>(1.164 * 64 * (i - 16) + 0.5), \
   static_cast<int16>(1.164 * 64 * (i - 16) + 0.5), \
@@ -17,6 +24,10 @@ extern "C" {
   static_cast<int16>(2.018 * 64 * (i - 128) + 0.5), \
   static_cast<int16>(-0.391 * 64 * (i - 128) + 0.5), \
   0, \
+  static_cast<int16>(256 * 64 - 1), \
+  static_cast<int16>(2.018 * 64 * (i - 128) + 0.5), \
+  static_cast<int16>(-0.391 * 64 * (i - 128) + 0.5), \
+  0, \
   static_cast<int16>(256 * 64 - 1) \
 }
 
@@ -24,10 +35,14 @@ extern "C" {
   0, \
   static_cast<int16>(-0.813 * 64 * (i - 128) + 0.5), \
   static_cast<int16>(1.596 * 64 * (i - 128) + 0.5), \
+  0, \
+  0, \
+  static_cast<int16>(-0.813 * 64 * (i - 128) + 0.5), \
+  static_cast<int16>(1.596 * 64 * (i - 128) + 0.5), \
   0 \
 }
 
-SIMD_ALIGNED(int16 kCoefficientsRgbY[256 * 3][4]) = {
+SIMD_ALIGNED(int16 kCoefficientsRgbY[256 * 3][8]) = {
   RGBY(0x00), RGBY(0x01), RGBY(0x02), RGBY(0x03),
   RGBY(0x04), RGBY(0x05), RGBY(0x06), RGBY(0x07),
   RGBY(0x08), RGBY(0x09), RGBY(0x0A), RGBY(0x0B),
