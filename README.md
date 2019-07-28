@@ -1,10 +1,6 @@
-
-This code is slightly modified to build on powerpc 32-bit linux. In order to
+This code is slightly modified to build on ppc64 big endian linux. In order to
 apply future commits this was based on Pale Moon 28.4.1 release code. Anything
 newer than that can be cherry picked and added to this repository.
-
-Included in the releases is a binary of Iceweasel-UXP for PowerPC 32-bit.
-[![iceweasel-uxp-powerpc.png](https://i.postimg.cc/nzY4Cc3m/iceweasel-uxp-powerpc.png)](https://postimg.cc/2bybtmRj)
 
 # Unified XUL Platform (UXP)
 
