@@ -15,63 +15,6 @@
 namespace mozilla {
 namespace gfx {
 
-already_AddRefed<DataSourceSurface>
-CreateDataSourceSurfaceFromData(const IntSize& aSize,
-                                SurfaceFormat aFormat,
-                                const uint8_t* aData,
-                                int32_t aDataStride)
-{
-  RefPtr<DataSourceSurface> srcSurface =
-      Factory::CreateWrappingDataSourceSurface(const_cast<uint8_t*>(aData),
-                                               aDataStride,
-                                               aSize,
-                                               aFormat);
-  RefPtr<DataSourceSurface> destSurface =
-      Factory::CreateDataSourceSurface(aSize, aFormat, false);
-
-  if (!srcSurface || !destSurface) {
-    return nullptr;
-  }
-
-  if (CopyRect(srcSurface,
-               destSurface,
-               IntRect(IntPoint(), srcSurface->GetSize()),
-               IntPoint())) {
-    return destSurface.forget();
-  }
-
-  return nullptr;
-}
-
-already_AddRefed<DataSourceSurface>
-CreateDataSourceSurfaceWithStrideFromData(const IntSize &aSize,
-                                          SurfaceFormat aFormat,
-                                          int32_t aStride,
-                                          const uint8_t* aData,
-                                          int32_t aDataStride)
-{
-  RefPtr<DataSourceSurface> srcSurface =
-      Factory::CreateWrappingDataSourceSurface(const_cast<uint8_t*>(aData),
-                                               aDataStride,
-                                               aSize,
-                                               aFormat);
-  RefPtr<DataSourceSurface> destSurface =
-      Factory::CreateDataSourceSurfaceWithStride(aSize, aFormat, aStride, false);
-
-  if (!srcSurface || !destSurface) {
-    return nullptr;
-  }
-
-  if (CopyRect(srcSurface,
-               destSurface,
-               IntRect(IntPoint(), srcSurface->GetSize()),
-               IntPoint())) {
-    return destSurface.forget();
-  }
-
-  return nullptr;
-}
-
 uint8_t*
 DataAtOffset(DataSourceSurface* aSurface,
              const DataSourceSurface::MappedSurface* aMap,
@@ -265,7 +208,7 @@ BufferSizeFromStrideAndHeight(int32_t aStride,
                               int32_t aHeight,
                               int32_t aExtraBytes)
 {
-  if (MOZ_UNLIKELY(aHeight <= 0) || MOZ_UNLIKELY(aStride <= 0)) {
+  if (MOZ_UNLIKELY(aHeight <= 0)) {
     return 0;
   }
 
@@ -279,29 +222,7 @@ BufferSizeFromStrideAndHeight(int32_t aStride,
   CheckedInt32 requiredBytes =
     CheckedInt32(aStride) * CheckedInt32(aHeight) + CheckedInt32(aExtraBytes);
   if (MOZ_UNLIKELY(!requiredBytes.isValid())) {
-    gfxWarning() << "Buffer size too big; returning zero " << aStride << ", " << aHeight << ", " << aExtraBytes;
-    return 0;
-  }
-  return requiredBytes.value();
-}
-
-size_t
-BufferSizeFromDimensions(int32_t aWidth,
-                         int32_t aHeight,
-                         int32_t aDepth,
-                         int32_t aExtraBytes)
-{
-  if (MOZ_UNLIKELY(aHeight <= 0) ||
-      MOZ_UNLIKELY(aWidth <= 0) ||
-      MOZ_UNLIKELY(aDepth <= 0)) {
-    return 0;
-  }
-
-  // Similar to BufferSizeFromStrideAndHeight, but with an extra parameter.
-
-  CheckedInt32 requiredBytes = CheckedInt32(aWidth) * CheckedInt32(aHeight) * CheckedInt32(aDepth) + CheckedInt32(aExtraBytes);
-  if (MOZ_UNLIKELY(!requiredBytes.isValid())) {
-    gfxWarning() << "Buffer size too big; returning zero " << aWidth << ", " << aHeight << ", " << aDepth << ", " << aExtraBytes;
+    gfxWarning() << "Buffer size too big; returning zero";
     return 0;
   }
   return requiredBytes.value();
@@ -311,7 +232,7 @@ BufferSizeFromDimensions(int32_t aWidth,
  * aSrcRect: Rect relative to the aSrc surface
  * aDestPoint: Point inside aDest surface
  */
-bool
+void
 CopyRect(DataSourceSurface* aSrc, DataSourceSurface* aDest,
          IntRect aSrcRect, IntPoint aDestPoint)
 {
@@ -321,20 +242,20 @@ CopyRect(DataSourceSurface* aSrc, DataSourceSurface* aDest,
   }
 
   MOZ_RELEASE_ASSERT(aSrc->GetFormat() == aDest->GetFormat(),
-                     "GFX: different surface formats");
+                     "different surface formats");
   MOZ_RELEASE_ASSERT(IntRect(IntPoint(), aSrc->GetSize()).Contains(aSrcRect),
-                     "GFX: source rect too big for source surface");
+                     "source rect too big for source surface");
   MOZ_RELEASE_ASSERT(IntRect(IntPoint(), aDest->GetSize()).Contains(IntRect(aDestPoint, aSrcRect.Size())),
-                     "GFX: dest surface too small");
+                     "dest surface too small");
 
   if (aSrcRect.IsEmpty()) {
-    return false;
+    return;
   }
 
   DataSourceSurface::ScopedMap srcMap(aSrc, DataSourceSurface::READ);
   DataSourceSurface::ScopedMap destMap(aDest, DataSourceSurface::WRITE);
   if (MOZ2D_WARN_IF(!srcMap.IsMapped() || !destMap.IsMapped())) {
-    return false;
+    return;
   }
 
   uint8_t* sourceData = DataAtOffset(aSrc, srcMap.GetMappedSurface(), aSrcRect.TopLeft());
@@ -355,8 +276,6 @@ CopyRect(DataSourceSurface* aSrc, DataSourceSurface* aDest,
       destData += destStride;
     }
   }
-
-  return true;
 }
 
 already_AddRefed<DataSourceSurface>

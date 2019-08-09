@@ -65,13 +65,10 @@ public:
   virtual already_AddRefed<SourceSurface> Snapshot() override;
   virtual IntSize GetSize() override;
 
-  virtual bool IsCurrentGroupOpaque() override;
-
   virtual void SetPermitSubpixelAA(bool aPermitSubpixelAA) override;
 
   virtual bool LockBits(uint8_t** aData, IntSize* aSize,
-                        int32_t* aStride, SurfaceFormat* aFormat,
-                        IntPoint* aOrigin = nullptr) override;
+                        int32_t* aStride, SurfaceFormat* aFormat) override;
   virtual void ReleaseBits(uint8_t* aData) override;
 
   virtual void Flush() override;
@@ -134,18 +131,9 @@ public:
                            Point aOffset,
                            const DrawOptions &aOptions = DrawOptions()) override;
 
-  virtual bool Draw3DTransformedSurface(SourceSurface* aSurface,
-                                        const Matrix4x4& aMatrix) override;
-
   virtual void PushClip(const Path *aPath) override;
   virtual void PushClipRect(const Rect &aRect) override;
   virtual void PopClip() override;
-  virtual void PushLayer(bool aOpaque, Float aOpacity,
-                         SourceSurface* aMask,
-                         const Matrix& aMaskTransform,
-                         const IntRect& aBounds = IntRect(),
-                         bool aCopyBackground = false) override;
-  virtual void PopLayer() override;
 
   virtual already_AddRefed<PathBuilder> CreatePathBuilder(FillRule aFillRule = FillRule::FILL_WINDING) const override;
 
@@ -169,9 +157,6 @@ public:
 
   virtual already_AddRefed<FilterNode> CreateFilter(FilterType aType) override;
 
-  virtual void GetGlyphRasterizationMetrics(ScaledFont *aScaledFont, const uint16_t* aGlyphIndices,
-                                            uint32_t aNumGlyphs, GlyphMetrics* aGlyphMetrics) override;
-
   virtual void *GetNativeSurface(NativeSurfaceType aType) override;
 
   bool Init(cairo_surface_t* aSurface, const IntSize& aSize, SurfaceFormat* aFormat = nullptr);
@@ -179,8 +164,6 @@ public:
   bool Init(unsigned char* aData, const IntSize &aSize, int32_t aStride, SurfaceFormat aFormat);
 
   virtual void SetTransform(const Matrix& aTransform) override;
-
-  virtual void DetachAllSnapshots() override { MarkSnapshotIndependent(); }
 
   // Call to set up aContext for drawing (with the current transform, etc).
   // Pass the path you're going to be using if you have one.
@@ -223,10 +206,6 @@ private: // methods
   // draw into it, to simulate the effect of an unbounded source operator.
   void ClearSurfaceForUnboundedSource(const CompositionOp &aOperator);
 
-  // Set the Cairo context font options according to the current draw target
-  // font state.
-  void SetFontOptions();
-
 private: // data
   cairo_t* mContext;
   cairo_surface_t* mSurface;
@@ -234,21 +213,6 @@ private: // data
   bool mTransformSingular;
 
   uint8_t* mLockedBits;
-
-  cairo_font_options_t* mFontOptions;
-
-  struct PushedLayer
-  {
-    PushedLayer(Float aOpacity, bool aWasPermittingSubpixelAA)
-      : mOpacity(aOpacity)
-      , mMaskPattern(nullptr)
-      , mWasPermittingSubpixelAA(aWasPermittingSubpixelAA)
-    {}
-    Float mOpacity;
-    cairo_pattern_t* mMaskPattern;
-    bool mWasPermittingSubpixelAA;
-  };
-  std::vector<PushedLayer> mPushedLayers;
 
   // The latest snapshot of this surface. This needs to be told when this
   // target is modified. We keep it alive as a cache.

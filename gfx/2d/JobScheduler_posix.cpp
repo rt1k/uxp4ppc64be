@@ -79,7 +79,7 @@ bool
 MultiThreadedJobQueue::PopJob(Job*& aOutJobs, AccessType aAccess)
 {
   for (;;) {
-    CriticalSectionAutoEnter lock(&mMutex);
+    MutexAutoLock lock(&mMutex);
 
     while (aAccess == BLOCKING && !mShuttingDown && mJobs.empty()) {
       mAvailableCondvar.Wait(&mMutex);
@@ -110,7 +110,7 @@ void
 MultiThreadedJobQueue::SubmitJob(Job* aJobs)
 {
   MOZ_ASSERT(aJobs);
-  CriticalSectionAutoEnter lock(&mMutex);
+  MutexAutoLock lock(&mMutex);
   mJobs.push_back(aJobs);
   mAvailableCondvar.Broadcast();
 }
@@ -118,21 +118,21 @@ MultiThreadedJobQueue::SubmitJob(Job* aJobs)
 size_t
 MultiThreadedJobQueue::NumJobs()
 {
-  CriticalSectionAutoEnter lock(&mMutex);
+  MutexAutoLock lock(&mMutex);
   return mJobs.size();
 }
 
 bool
 MultiThreadedJobQueue::IsEmpty()
 {
-  CriticalSectionAutoEnter lock(&mMutex);
+  MutexAutoLock lock(&mMutex);
   return mJobs.empty();
 }
 
 void
 MultiThreadedJobQueue::ShutDown()
 {
-  CriticalSectionAutoEnter lock(&mMutex);
+  MutexAutoLock lock(&mMutex);
   mShuttingDown = true;
   while (mThreadsCount) {
     mAvailableCondvar.Broadcast();
@@ -149,7 +149,7 @@ MultiThreadedJobQueue::RegisterThread()
 void
 MultiThreadedJobQueue::UnregisterThread()
 {
-  CriticalSectionAutoEnter lock(&mMutex);
+  MutexAutoLock lock(&mMutex);
   mThreadsCount -= 1;
   if (mThreadsCount == 0) {
     mShutdownCondvar.Broadcast();
@@ -166,14 +166,14 @@ EventObject::~EventObject()
 bool
 EventObject::Peak()
 {
-  CriticalSectionAutoEnter lock(&mMutex);
+  MutexAutoLock lock(&mMutex);
   return mIsSet;
 }
 
 void
 EventObject::Set()
 {
-  CriticalSectionAutoEnter lock(&mMutex);
+  MutexAutoLock lock(&mMutex);
   if (!mIsSet) {
     mIsSet = true;
     mCond.Broadcast();
@@ -183,7 +183,7 @@ EventObject::Set()
 void
 EventObject::Wait()
 {
-  CriticalSectionAutoEnter lock(&mMutex);
+  MutexAutoLock lock(&mMutex);
   if (mIsSet) {
     return;
   }

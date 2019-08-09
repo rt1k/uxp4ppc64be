@@ -33,9 +33,7 @@ public:
 
   virtual already_AddRefed<Path> GetPathForGlyphs(const GlyphBuffer &aBuffer, const DrawTarget *aTarget);
 
-  virtual void CopyGlyphsToBuilder(const GlyphBuffer &aBuffer, PathBuilder *aBuilder, const Matrix *aTransformHint);
-
-  virtual void GetGlyphDesignMetrics(const uint16_t* aGlyphIndices, uint32_t aNumGlyphs, GlyphMetrics* aGlyphMetrics);
+  virtual void CopyGlyphsToBuilder(const GlyphBuffer &aBuffer, PathBuilder *aBuilder, BackendType aBackendType, const Matrix *aTransformHint);
 
   float GetSize() { return mSize; }
 
@@ -47,7 +45,6 @@ public:
   virtual FontType GetType() const { return FontType::SKIA; }
 
 #ifdef USE_CAIRO_SCALED_FONT
-  bool PopulateCairoScaledFont();
   cairo_scaled_font_t* GetCairoScaledFont() { return mScaledFont; }
   void SetCairoScaledFont(cairo_scaled_font_t* font);
 #endif
@@ -59,8 +56,6 @@ protected:
   SkPath GetSkiaPathForGlyphs(const GlyphBuffer &aBuffer);
 #endif
 #ifdef USE_CAIRO_SCALED_FONT
-  // Overridders should ensure the cairo_font_face_t has been addrefed.
-  virtual cairo_font_face_t* GetCairoFontFace() { return nullptr; }
   cairo_scaled_font_t* mScaledFont;
 #endif
   Float mSize;

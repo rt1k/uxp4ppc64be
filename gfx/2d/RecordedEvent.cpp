@@ -4,14 +4,11 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "RecordedEvent.h"
-
 #include "PathRecording.h"
-#include "RecordingTypes.h"
+
 #include "Tools.h"
 #include "Filters.h"
 #include "Logging.h"
-#include "ScaledFontBase.h"
-#include "SFNTData.h"
 
 namespace mozilla {
 namespace gfx {
@@ -28,16 +25,6 @@ static std::string NameFromBackend(BackendType aType)
   default:
     return "Unknown";
   }
-}
-
-already_AddRefed<DrawTarget>
-Translator::CreateDrawTarget(ReferencePtr aRefPtr, const IntSize &aSize,
-                             SurfaceFormat aFormat)
-{
-  RefPtr<DrawTarget> newDT =
-    GetReferenceDrawTarget()->CreateSimilarDrawTarget(aSize, aFormat);
-  AddDrawTarget(aRefPtr, newDT);
-  return newDT.forget();
 }
 
 #define LOAD_EVENT_TYPE(_typeenum, _class) \
@@ -79,11 +66,6 @@ RecordedEvent::LoadEventFromStream(std::istream &aStream, EventType aType)
     LOAD_EVENT_TYPE(MASKSURFACE, RecordedMaskSurface);
     LOAD_EVENT_TYPE(FILTERNODESETATTRIBUTE, RecordedFilterNodeSetAttribute);
     LOAD_EVENT_TYPE(FILTERNODESETINPUT, RecordedFilterNodeSetInput);
-    LOAD_EVENT_TYPE(CREATESIMILARDRAWTARGET, RecordedCreateSimilarDrawTarget);
-    LOAD_EVENT_TYPE(FONTDATA, RecordedFontData);
-    LOAD_EVENT_TYPE(FONTDESC, RecordedFontDescriptor);
-    LOAD_EVENT_TYPE(PUSHLAYER, RecordedPushLayer);
-    LOAD_EVENT_TYPE(POPLAYER, RecordedPopLayer);
   default:
     return nullptr;
   }
@@ -157,16 +139,6 @@ RecordedEvent::GetEventName(EventType aType)
     return "SetAttribute";
   case FILTERNODESETINPUT:
     return "SetInput";
-  case CREATESIMILARDRAWTARGET:
-    return "CreateSimilarDrawTarget";
-  case FONTDATA:
-    return "FontData";
-  case FONTDESC:
-    return "FontDescriptor";
-  case PUSHLAYER:
-    return "PushLayer";
-  case POPLAYER:
-    return "PopLayer";
   default:
     return "Unknown";
   }
@@ -279,10 +251,9 @@ RecordedEvent::StorePattern(PatternStorage &aDestination, const Pattern &aSource
       const SurfacePattern *pat =
         static_cast<const SurfacePattern*>(&aSource);
       store->mExtend = pat->mExtendMode;
-      store->mSamplingFilter = pat->mSamplingFilter;
+      store->mFilter = pat->mFilter;
       store->mMatrix = pat->mMatrix;
       store->mSurface = pat->mSurface;
-      store->mSamplingRect = pat->mSamplingRect;
       return;
     }
   }
@@ -391,24 +362,17 @@ RecordedDrawingEvent::GetObjectRef() const
   return mDT;
 }
 
-bool
+void
 RecordedDrawTargetCreation::PlayEvent(Translator *aTranslator) const
 {
   RefPtr<DrawTarget> newDT =
-    aTranslator->CreateDrawTarget(mRefPtr, mSize, mFormat);
-
-  // If we couldn't create a DrawTarget this will probably cause us to crash
-  // with nullptr later in the playback, so return false to abort.
-  if (!newDT) {
-    return false;
-  }
+    aTranslator->GetReferenceDrawTarget()->CreateSimilarDrawTarget(mSize, mFormat);
+  aTranslator->AddDrawTarget(mRefPtr, newDT);
 
   if (mHasExistingData) {
     Rect dataRect(0, 0, mExistingData->GetSize().width, mExistingData->GetSize().height);
     newDT->DrawSurface(mExistingData, dataRect, dataRect);
   }
-
-  return true;
 }
 
 void
@@ -464,11 +428,10 @@ RecordedDrawTargetCreation::OutputSimpleEventInfo(stringstream &aStringStream) c
 }
 
 
-bool
+void
 RecordedDrawTargetDestruction::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->RemoveDrawTarget(mRefPtr);
-  return true;
 }
 
 void
@@ -487,44 +450,6 @@ void
 RecordedDrawTargetDestruction::OutputSimpleEventInfo(stringstream &aStringStream) const
 {
   aStringStream << "[" << mRefPtr << "] DrawTarget Destruction";
-}
-
-bool
-RecordedCreateSimilarDrawTarget::PlayEvent(Translator *aTranslator) const
-{
-  RefPtr<DrawTarget> newDT =
-    aTranslator->GetReferenceDrawTarget()->CreateSimilarDrawTarget(mSize, mFormat);
-
-  // If we couldn't create a DrawTarget this will probably cause us to crash
-  // with nullptr later in the playback, so return false to abort.
-  if (!newDT) {
-    return false;
-  }
-
-  aTranslator->AddDrawTarget(mRefPtr, newDT);
-  return true;
-}
-
-void
-RecordedCreateSimilarDrawTarget::RecordToStream(ostream &aStream) const
-{
-  WriteElement(aStream, mRefPtr);
-  WriteElement(aStream, mSize);
-  WriteElement(aStream, mFormat);
-}
-
-RecordedCreateSimilarDrawTarget::RecordedCreateSimilarDrawTarget(istream &aStream)
-  : RecordedEvent(CREATESIMILARDRAWTARGET)
-{
-  ReadElement(aStream, mRefPtr);
-  ReadElement(aStream, mSize);
-  ReadElement(aStream, mFormat);
-}
-
-void
-RecordedCreateSimilarDrawTarget::OutputSimpleEventInfo(stringstream &aStringStream) const
-{
-  aStringStream << "[" << mRefPtr << "] CreateSimilarDrawTarget (Size: " << mSize.width << "x" << mSize.height << ")";
 }
 
 struct GenericPattern
@@ -551,9 +476,7 @@ struct GenericPattern
         SurfacePatternStorage *storage = reinterpret_cast<SurfacePatternStorage*>(&mStorage->mStorage);
         mPattern =
           new (mSurfPat) SurfacePattern(mTranslator->LookupSourceSurface(storage->mSurface),
-                                        storage->mExtend, storage->mMatrix,
-                                        storage->mSamplingFilter,
-                                        storage->mSamplingRect);
+                                        storage->mExtend, storage->mMatrix, storage->mFilter);
         return mPattern;
       }
     case PatternType::LINEAR_GRADIENT:
@@ -594,11 +517,10 @@ struct GenericPattern
   Translator *mTranslator;
 };
 
-bool
+void
 RecordedFillRect::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->FillRect(mRect, *GenericPattern(mPattern, aTranslator), mOptions);
-  return true;
 }
 
 void
@@ -625,11 +547,10 @@ RecordedFillRect::OutputSimpleEventInfo(stringstream &aStringStream) const
   OutputSimplePatternInfo(mPattern, aStringStream);
 }
 
-bool
+void
 RecordedStrokeRect::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->StrokeRect(mRect, *GenericPattern(mPattern, aTranslator), mStrokeOptions, mOptions);
-  return true;
 }
 
 void
@@ -659,11 +580,10 @@ RecordedStrokeRect::OutputSimpleEventInfo(stringstream &aStringStream) const
   OutputSimplePatternInfo(mPattern, aStringStream);
 }
 
-bool
+void
 RecordedStrokeLine::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->StrokeLine(mBegin, mEnd, *GenericPattern(mPattern, aTranslator), mStrokeOptions, mOptions);
-  return true;
 }
 
 void
@@ -695,11 +615,10 @@ RecordedStrokeLine::OutputSimpleEventInfo(stringstream &aStringStream) const
   OutputSimplePatternInfo(mPattern, aStringStream);
 }
 
-bool
+void
 RecordedFill::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->Fill(aTranslator->LookupPath(mPath), *GenericPattern(mPattern, aTranslator), mOptions);
-  return true;
 }
 
 RecordedFill::RecordedFill(istream &aStream)
@@ -731,14 +650,13 @@ RecordedFillGlyphs::~RecordedFillGlyphs()
   delete [] mGlyphs;
 }
 
-bool
+void
 RecordedFillGlyphs::PlayEvent(Translator *aTranslator) const
 {
   GlyphBuffer buffer;
   buffer.mGlyphs = mGlyphs;
   buffer.mNumGlyphs = mNumGlyphs;
   aTranslator->LookupDrawTarget(mDT)->FillGlyphs(aTranslator->LookupScaledFont(mScaledFont), buffer, *GenericPattern(mPattern, aTranslator), mOptions);
-  return true;
 }
 
 RecordedFillGlyphs::RecordedFillGlyphs(istream &aStream)
@@ -770,11 +688,10 @@ RecordedFillGlyphs::OutputSimpleEventInfo(stringstream &aStringStream) const
   OutputSimplePatternInfo(mPattern, aStringStream);
 }
 
-bool
+void
 RecordedMask::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->Mask(*GenericPattern(mSource, aTranslator), *GenericPattern(mMask, aTranslator), mOptions);
-  return true;
 }
 
 RecordedMask::RecordedMask(istream &aStream)
@@ -803,11 +720,10 @@ RecordedMask::OutputSimpleEventInfo(stringstream &aStringStream) const
   OutputSimplePatternInfo(mMask, aStringStream);
 }
 
-bool
+void
 RecordedStroke::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->Stroke(aTranslator->LookupPath(mPath), *GenericPattern(mPattern, aTranslator), mStrokeOptions, mOptions);
-  return true;
 }
 
 void
@@ -836,11 +752,10 @@ RecordedStroke::OutputSimpleEventInfo(stringstream &aStringStream) const
   OutputSimplePatternInfo(mPattern, aStringStream);
 }
 
-bool
+void
 RecordedClearRect::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->ClearRect(mRect);
-  return true;
 }
 
 void
@@ -862,12 +777,11 @@ RecordedClearRect::OutputSimpleEventInfo(stringstream &aStringStream) const
   aStringStream << "[" << mDT<< "] ClearRect (" << mRect.x << ", " << mRect.y << " - " << mRect.width << " x " << mRect.height << ") ";
 }
 
-bool
+void
 RecordedCopySurface::PlayEvent(Translator *aTranslator) const
 {
 	aTranslator->LookupDrawTarget(mDT)->CopySurface(aTranslator->LookupSourceSurface(mSourceSurface),
                                                   mSourceRect, mDest);
-  return true;
 }
 
 void
@@ -893,11 +807,10 @@ RecordedCopySurface::OutputSimpleEventInfo(stringstream &aStringStream) const
   aStringStream << "[" << mDT<< "] CopySurface (" << mSourceSurface << ")";
 }
 
-bool
+void
 RecordedPushClip::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->PushClip(aTranslator->LookupPath(mPath));
-  return true;
 }
 
 void
@@ -919,11 +832,10 @@ RecordedPushClip::OutputSimpleEventInfo(stringstream &aStringStream) const
   aStringStream << "[" << mDT << "] PushClip (" << mPath << ") ";
 }
 
-bool
+void
 RecordedPushClipRect::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->PushClipRect(mRect);
-  return true;
 }
 
 void
@@ -945,11 +857,10 @@ RecordedPushClipRect::OutputSimpleEventInfo(stringstream &aStringStream) const
   aStringStream << "[" << mDT << "] PushClipRect (" << mRect.x << ", " << mRect.y << " - " << mRect.width << " x " << mRect.height << ") ";
 }
 
-bool
+void
 RecordedPopClip::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->PopClip();
-  return true;
 }
 
 void
@@ -969,75 +880,10 @@ RecordedPopClip::OutputSimpleEventInfo(stringstream &aStringStream) const
   aStringStream << "[" << mDT << "] PopClip";
 }
 
-bool
-RecordedPushLayer::PlayEvent(Translator *aTranslator) const
-{
-  SourceSurface* mask = mMask ? aTranslator->LookupSourceSurface(mMask)
-                              : nullptr;
-  aTranslator->LookupDrawTarget(mDT)->
-    PushLayer(mOpaque, mOpacity, mask, mMaskTransform, mBounds, mCopyBackground);
-  return true;
-}
-
 void
-RecordedPushLayer::RecordToStream(ostream &aStream) const
-{
-  RecordedDrawingEvent::RecordToStream(aStream);
-  WriteElement(aStream, mOpaque);
-  WriteElement(aStream, mOpacity);
-  WriteElement(aStream, mMask);
-  WriteElement(aStream, mMaskTransform);
-  WriteElement(aStream, mBounds);
-  WriteElement(aStream, mCopyBackground);
-}
-
-RecordedPushLayer::RecordedPushLayer(istream &aStream)
-  : RecordedDrawingEvent(PUSHLAYER, aStream)
-{
-  ReadElement(aStream, mOpaque);
-  ReadElement(aStream, mOpacity);
-  ReadElement(aStream, mMask);
-  ReadElement(aStream, mMaskTransform);
-  ReadElement(aStream, mBounds);
-  ReadElement(aStream, mCopyBackground);
-}
-
-void
-RecordedPushLayer::OutputSimpleEventInfo(stringstream &aStringStream) const
-{
-  aStringStream << "[" << mDT << "] PushPLayer (Opaque=" << mOpaque <<
-    ", Opacity=" << mOpacity << ", Mask Ref=" << mMask << ") ";
-}
-
-bool
-RecordedPopLayer::PlayEvent(Translator *aTranslator) const
-{
-  aTranslator->LookupDrawTarget(mDT)->PopLayer();
-  return true;
-}
-
-void
-RecordedPopLayer::RecordToStream(ostream &aStream) const
-{
-  RecordedDrawingEvent::RecordToStream(aStream);
-}
-
-RecordedPopLayer::RecordedPopLayer(istream &aStream)
-  : RecordedDrawingEvent(POPLAYER, aStream)
-{
-}
-
-void
-RecordedPopLayer::OutputSimpleEventInfo(stringstream &aStringStream) const
-{
-  aStringStream << "[" << mDT << "] PopLayer";
-}
-
-bool
 RecordedSetTransform::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->SetTransform(mTransform);
-  return true;
 }
 
 void
@@ -1060,13 +906,12 @@ RecordedSetTransform::OutputSimpleEventInfo(stringstream &aStringStream) const
     mTransform._21 << " " << mTransform._22 << " ; " << mTransform._31 << " " << mTransform._32 << " ]";
 }
 
-bool
+void
 RecordedDrawSurface::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->
     DrawSurface(aTranslator->LookupSourceSurface(mRefSource), mDest, mSource,
                 mDSOptions, mOptions);
-  return true;
 }
 
 void
@@ -1096,13 +941,12 @@ RecordedDrawSurface::OutputSimpleEventInfo(stringstream &aStringStream) const
   aStringStream << "[" << mDT << "] DrawSurface (" << mRefSource << ")";
 }
 
-bool
+void
 RecordedDrawFilter::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->
     DrawFilter(aTranslator->LookupFilterNode(mNode), mSourceRect,
                 mDestPoint, mOptions);
-  return true;
 }
 
 void
@@ -1130,13 +974,12 @@ RecordedDrawFilter::OutputSimpleEventInfo(stringstream &aStringStream) const
   aStringStream << "[" << mDT << "] DrawFilter (" << mNode << ")";
 }
 
-bool
+void
 RecordedDrawSurfaceWithShadow::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->
     DrawSurfaceWithShadow(aTranslator->LookupSourceSurface(mRefSource),
                           mDest, mColor, mOffset, mSigma, mOp);
-  return true;
 }
 
 void
@@ -1178,7 +1021,7 @@ RecordedPathCreation::~RecordedPathCreation()
 {
 }
 
-bool
+void
 RecordedPathCreation::PlayEvent(Translator *aTranslator) const
 {
   RefPtr<PathBuilder> builder = 
@@ -1207,7 +1050,6 @@ RecordedPathCreation::PlayEvent(Translator *aTranslator) const
 
   RefPtr<Path> path = builder->Finish();
   aTranslator->AddPath(mRefPtr, path);
-  return true;
 }
 
 void
@@ -1264,11 +1106,10 @@ RecordedPathCreation::OutputSimpleEventInfo(stringstream &aStringStream) const
 {
   aStringStream << "[" << mRefPtr << "] Path created (OpCount: " << mPathOps.size() << ")";
 }
-bool
+void
 RecordedPathDestruction::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->RemovePath(mRefPtr);
-  return true;
 }
 
 void
@@ -1296,17 +1137,12 @@ RecordedSourceSurfaceCreation::~RecordedSourceSurfaceCreation()
   }
 }
 
-bool
+void
 RecordedSourceSurfaceCreation::PlayEvent(Translator *aTranslator) const
 {
-  if (!mData) {
-    return false;
-  }
-
   RefPtr<SourceSurface> src = aTranslator->GetReferenceDrawTarget()->
     CreateSourceSurfaceFromData(mData, mSize, mSize.width * BytesPerPixel(mFormat), mFormat);
   aTranslator->AddSourceSurface(mRefPtr, src);
-  return true;
 }
 
 void
@@ -1315,7 +1151,6 @@ RecordedSourceSurfaceCreation::RecordToStream(ostream &aStream) const
   WriteElement(aStream, mRefPtr);
   WriteElement(aStream, mSize);
   WriteElement(aStream, mFormat);
-  MOZ_ASSERT(mData);
   for (int y = 0; y < mSize.height; y++) {
     aStream.write((const char*)mData + y * mStride, BytesPerPixel(mFormat) * mSize.width);
   }
@@ -1327,12 +1162,8 @@ RecordedSourceSurfaceCreation::RecordedSourceSurfaceCreation(istream &aStream)
   ReadElement(aStream, mRefPtr);
   ReadElement(aStream, mSize);
   ReadElement(aStream, mFormat);
-  mData = (uint8_t*)new (fallible) char[mSize.width * mSize.height * BytesPerPixel(mFormat)];
-  if (!mData) {
-    gfxWarning() << "RecordedSourceSurfaceCreation failed to allocate data";
-  } else {
-    aStream.read((char*)mData, mSize.width * mSize.height * BytesPerPixel(mFormat));
-  }
+  mData = (uint8_t*)new char[mSize.width * mSize.height * BytesPerPixel(mFormat)];
+  aStream.read((char*)mData, mSize.width * mSize.height * BytesPerPixel(mFormat));
 }
 
 void
@@ -1341,11 +1172,10 @@ RecordedSourceSurfaceCreation::OutputSimpleEventInfo(stringstream &aStringStream
   aStringStream << "[" << mRefPtr << "] SourceSurface created (Size: " << mSize.width << "x" << mSize.height << ")";
 }
 
-bool
+void
 RecordedSourceSurfaceDestruction::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->RemoveSourceSurface(mRefPtr);
-  return true;
 }
 
 void
@@ -1370,13 +1200,12 @@ RecordedFilterNodeCreation::~RecordedFilterNodeCreation()
 {
 }
 
-bool
+void
 RecordedFilterNodeCreation::PlayEvent(Translator *aTranslator) const
 {
   RefPtr<FilterNode> node = aTranslator->GetReferenceDrawTarget()->
     CreateFilter(mType);
   aTranslator->AddFilterNode(mRefPtr, node);
-  return true;
 }
 
 void
@@ -1399,11 +1228,10 @@ RecordedFilterNodeCreation::OutputSimpleEventInfo(stringstream &aStringStream) c
   aStringStream << "[" << mRefPtr << "] FilterNode created (Type: " << int(mType) << ")";
 }
 
-bool
+void
 RecordedFilterNodeDestruction::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->RemoveFilterNode(mRefPtr);
-  return true;
 }
 
 void
@@ -1431,13 +1259,12 @@ RecordedGradientStopsCreation::~RecordedGradientStopsCreation()
   }
 }
 
-bool
+void
 RecordedGradientStopsCreation::PlayEvent(Translator *aTranslator) const
 {
   RefPtr<GradientStops> src = aTranslator->GetReferenceDrawTarget()->
     CreateGradientStops(mStops, mNumStops, mExtendMode);
   aTranslator->AddGradientStops(mRefPtr, src);
-  return true;
 }
 
 void
@@ -1466,11 +1293,10 @@ RecordedGradientStopsCreation::OutputSimpleEventInfo(stringstream &aStringStream
   aStringStream << "[" << mRefPtr << "] GradientStops created (Stops: " << mNumStops << ")";
 }
 
-bool
+void
 RecordedGradientStopsDestruction::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->RemoveGradientStops(mRefPtr);
-  return true;
 }
 
 void
@@ -1491,12 +1317,11 @@ RecordedGradientStopsDestruction::OutputSimpleEventInfo(stringstream &aStringStr
   aStringStream << "[" << mRefPtr << "] GradientStops Destroyed";
 }
 
-bool
+void
 RecordedSnapshot::PlayEvent(Translator *aTranslator) const
 {
   RefPtr<SourceSurface> src = aTranslator->LookupDrawTarget(mDT)->Snapshot();
   aTranslator->AddSourceSurface(mRefPtr, src);
-  return true;
 }
 
 void
@@ -1519,161 +1344,28 @@ RecordedSnapshot::OutputSimpleEventInfo(stringstream &aStringStream) const
   aStringStream << "[" << mRefPtr << "] Snapshot Created (DT: " << mDT << ")";
 }
 
-RecordedFontData::~RecordedFontData()
+RecordedScaledFontCreation::~RecordedScaledFontCreation()
 {
-  delete[] mData;
-}
-
-bool
-RecordedFontData::PlayEvent(Translator *aTranslator) const
-{
-  RefPtr<NativeFontResource> fontResource =
-    Factory::CreateNativeFontResource(mData, mFontDetails.size,
-                                      aTranslator->GetDesiredFontType());
-  if (!fontResource) {
-    return false;
-  }
-
-  aTranslator->AddNativeFontResource(mFontDetails.fontDataKey, fontResource);
-  return true;
+  delete [] mData;
 }
 
 void
-RecordedFontData::RecordToStream(std::ostream &aStream) const
-{
-  MOZ_ASSERT(mGetFontFileDataSucceeded);
-
-  WriteElement(aStream, mFontDetails.fontDataKey);
-  WriteElement(aStream, mFontDetails.size);
-  aStream.write((const char*)mData, mFontDetails.size);
-}
-
-void
-RecordedFontData::OutputSimpleEventInfo(stringstream &aStringStream) const
-{
-  aStringStream << "Font Data of size " << mFontDetails.size;
-}
-
-void
-RecordedFontData::SetFontData(const uint8_t *aData, uint32_t aSize, uint32_t aIndex, Float aGlyphSize)
-{
-  mData = new uint8_t[aSize];
-  memcpy(mData, aData, aSize);
-  mFontDetails.fontDataKey = SFNTData::GetUniqueKey(aData, aSize);
-  mFontDetails.size = aSize;
-  mFontDetails.index = aIndex;
-  mFontDetails.glyphSize = aGlyphSize;
-}
-
-bool
-RecordedFontData::GetFontDetails(RecordedFontDetails& fontDetails)
-{
-  if (!mGetFontFileDataSucceeded) {
-    return false;
-  }
-
-  fontDetails.fontDataKey = mFontDetails.fontDataKey;
-  fontDetails.size = mFontDetails.size;
-  fontDetails.glyphSize = mFontDetails.glyphSize;
-  fontDetails.index = mFontDetails.index;
-  return true;
-}
-
-RecordedFontData::RecordedFontData(istream &aStream)
-  : RecordedEvent(FONTDATA)
-{
-  ReadElement(aStream, mFontDetails.fontDataKey);
-  ReadElement(aStream, mFontDetails.size);
-  mData = new uint8_t[mFontDetails.size];
-  aStream.read((char*)mData, mFontDetails.size);
-}
-
-RecordedFontDescriptor::~RecordedFontDescriptor()
-{
-}
-
-bool
-RecordedFontDescriptor::PlayEvent(Translator *aTranslator) const
-{
-  MOZ_ASSERT(mType == FontType::GDI);
-
-  NativeFont nativeFont;
-  nativeFont.mType = (NativeFontType)mType;
-  nativeFont.mFont = (void*)&mData[0];
-
-  RefPtr<ScaledFont> font =
-    Factory::CreateScaledFontForNativeFont(nativeFont, mFontSize);
-
-#ifdef USE_CAIRO_SCALED_FONT
-  static_cast<ScaledFontBase*>(font.get())->PopulateCairoScaledFont();
-#endif
-
-  aTranslator->AddScaledFont(mRefPtr, font);
-  return true;
-}
-
-void
-RecordedFontDescriptor::RecordToStream(std::ostream &aStream) const
-{
-  MOZ_ASSERT(mHasDesc);
-  WriteElement(aStream, mType);
-  WriteElement(aStream, mFontSize);
-  WriteElement(aStream, mRefPtr);
-  WriteElement(aStream, (size_t)mData.size());
-  aStream.write((char*)&mData[0], mData.size());
-}
-
-void
-RecordedFontDescriptor::OutputSimpleEventInfo(stringstream &aStringStream) const
-{
-  aStringStream << "[" << mRefPtr << "] Font Descriptor";
-}
-
-void
-RecordedFontDescriptor::SetFontDescriptor(const uint8_t* aData, uint32_t aSize, Float aFontSize)
-{
-  mData.assign(aData, aData + aSize);
-  mFontSize = aFontSize;
-}
-
-RecordedFontDescriptor::RecordedFontDescriptor(istream &aStream)
-  : RecordedEvent(FONTDATA)
-{
-  ReadElement(aStream, mType);
-  ReadElement(aStream, mFontSize);
-  ReadElement(aStream, mRefPtr);
-
-  size_t size;
-  ReadElement(aStream, size);
-  mData.resize(size);
-  aStream.read((char*)&mData[0], size);
-}
-
-bool
 RecordedScaledFontCreation::PlayEvent(Translator *aTranslator) const
 {
-  NativeFontResource *fontResource = aTranslator->LookupNativeFontResource(mFontDataKey);
-  if (!fontResource) {
-    gfxDevCrash(LogReason::NativeFontResourceNotFound) <<
-      "NativeFontResource lookup failed for key |" << hexa(mFontDataKey) << "|.";
-    return false;
-  }
-
   RefPtr<ScaledFont> scaledFont =
-    fontResource->CreateScaledFont(mIndex, mGlyphSize, mInstanceData.data(), mInstanceData.size());
+    Factory::CreateScaledFontForTrueTypeData(mData, mSize, mIndex, mGlyphSize,
+                                             aTranslator->GetDesiredFontType());
   aTranslator->AddScaledFont(mRefPtr, scaledFont);
-  return true;
 }
 
 void
 RecordedScaledFontCreation::RecordToStream(std::ostream &aStream) const
 {
   WriteElement(aStream, mRefPtr);
-  WriteElement(aStream, mFontDataKey);
   WriteElement(aStream, mIndex);
   WriteElement(aStream, mGlyphSize);
-  WriteElement(aStream, (size_t)mInstanceData.size());
-  aStream.write((char*)mInstanceData.data(), mInstanceData.size());
+  WriteElement(aStream, mSize);
+  aStream.write((const char*)mData, mSize);
 }
 
 void
@@ -1683,30 +1375,30 @@ RecordedScaledFontCreation::OutputSimpleEventInfo(stringstream &aStringStream) c
 }
 
 void
-RecordedScaledFontCreation::SetFontInstanceData(const uint8_t *aData, uint32_t aSize)
+RecordedScaledFontCreation::SetFontData(const uint8_t *aData, uint32_t aSize, uint32_t aIndex, Float aGlyphSize)
 {
-  mInstanceData.assign(aData, aData + aSize);
+  mData = new uint8_t[aSize];
+  memcpy(mData, aData, aSize);
+  mSize = aSize;
+  mIndex = aIndex;
+  mGlyphSize = aGlyphSize;
 }
 
 RecordedScaledFontCreation::RecordedScaledFontCreation(istream &aStream)
   : RecordedEvent(SCALEDFONTCREATION)
 {
   ReadElement(aStream, mRefPtr);
-  ReadElement(aStream, mFontDataKey);
   ReadElement(aStream, mIndex);
   ReadElement(aStream, mGlyphSize);
-
-  size_t size;
-  ReadElement(aStream, size);
-  mInstanceData.resize(size);
-  aStream.read((char*)mInstanceData.data(), size);
+  ReadElement(aStream, mSize);
+  mData = new uint8_t[mSize];
+  aStream.read((char*)mData, mSize);
 }
 
-bool
+void
 RecordedScaledFontDestruction::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->RemoveScaledFont(mRefPtr);
-  return true;
 }
 
 void
@@ -1727,14 +1419,13 @@ RecordedScaledFontDestruction::OutputSimpleEventInfo(stringstream &aStringStream
   aStringStream << "[" << mRefPtr << "] ScaledFont Destroyed";
 }
 
-bool
+void
 RecordedMaskSurface::PlayEvent(Translator *aTranslator) const
 {
   aTranslator->LookupDrawTarget(mDT)->
     MaskSurface(*GenericPattern(mPattern, aTranslator),
                 aTranslator->LookupSourceSurface(mRefMask),
                 mOffset, mOptions);
-  return true;
 }
 
 void
@@ -1770,7 +1461,7 @@ ReplaySetAttribute(FilterNode *aNode, uint32_t aIndex, T aValue)
   aNode->SetAttribute(aIndex, aValue);
 }
 
-bool
+void
 RecordedFilterNodeSetAttribute::PlayEvent(Translator *aTranslator) const
 {
 #define REPLAY_SET_ATTRIBUTE(type, argtype) \
@@ -1788,7 +1479,6 @@ RecordedFilterNodeSetAttribute::PlayEvent(Translator *aTranslator) const
     REPLAY_SET_ATTRIBUTE(Rect, RECT);
     REPLAY_SET_ATTRIBUTE(IntRect, INTRECT);
     REPLAY_SET_ATTRIBUTE(Point, POINT);
-    REPLAY_SET_ATTRIBUTE(Matrix, MATRIX);
     REPLAY_SET_ATTRIBUTE(Matrix5x4, MATRIX5X4);
     REPLAY_SET_ATTRIBUTE(Point3D, POINT3D);
     REPLAY_SET_ATTRIBUTE(Color, COLOR);
@@ -1799,8 +1489,6 @@ RecordedFilterNodeSetAttribute::PlayEvent(Translator *aTranslator) const
       mPayload.size() / sizeof(Float));
     break;
   }
-
-  return true;
 }
 
 void
@@ -1832,7 +1520,7 @@ RecordedFilterNodeSetAttribute::OutputSimpleEventInfo(stringstream &aStringStrea
   aStringStream << "[" << mNode << "] SetAttribute (" << mIndex << ")";
 }
 
-bool
+void
 RecordedFilterNodeSetInput::PlayEvent(Translator *aTranslator) const
 {
   if (mInputFilter) {
@@ -1842,8 +1530,6 @@ RecordedFilterNodeSetInput::PlayEvent(Translator *aTranslator) const
     aTranslator->LookupFilterNode(mNode)->SetInput(
       mIndex, aTranslator->LookupSourceSurface(mInputSurface));
   }
-
-  return true;
 }
 
 void

@@ -26,6 +26,9 @@ class Job;
 class PosixCondVar;
 class WorkerThread;
 
+typedef mozilla::gfx::CriticalSection Mutex;
+typedef mozilla::gfx::CriticalSectionAutoEnter MutexAutoLock;
+
 // posix platforms only!
 class PosixCondVar {
 public:
@@ -39,7 +42,7 @@ public:
     MOZ_ASSERT(!err);
   }
 
-  void Wait(CriticalSection* aMutex) {
+  void Wait(Mutex* aMutex) {
     DebugOnly<int> err = pthread_cond_wait(&mCond, &aMutex->mMutex);
     MOZ_ASSERT(!err);
   }
@@ -98,7 +101,7 @@ public:
 protected:
 
   std::list<Job*> mJobs;
-  CriticalSection mMutex;
+  Mutex mMutex;
   PosixCondVar mAvailableCondvar;
   PosixCondVar mShutdownCondvar;
   int32_t mThreadsCount;
@@ -128,7 +131,7 @@ public:
   void Set();
 
 protected:
-  CriticalSection mMutex;
+  Mutex mMutex;
   PosixCondVar mCond;
   bool mIsSet;
 };

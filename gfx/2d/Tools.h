@@ -12,6 +12,9 @@
 #include "Types.h"
 #include "Point.h"
 #include <math.h>
+#if defined(_MSC_VER) && (_MSC_VER < 1600)
+#define hypotf _hypotf
+#endif
 
 namespace mozilla {
 namespace gfx {
@@ -85,32 +88,8 @@ BytesPerPixel(SurfaceFormat aFormat)
     return 1;
   case SurfaceFormat::R5G6B5_UINT16:
     return 2;
-  case SurfaceFormat::R8G8B8:
-  case SurfaceFormat::B8G8R8:
-    return 3;
-  case SurfaceFormat::HSV:
-  case SurfaceFormat::Lab:
-    return 3 * sizeof(float);
-  case SurfaceFormat::Depth:
-    return sizeof(uint16_t);
   default:
     return 4;
-  }
-}
-
-static inline bool
-IsOpaqueFormat(SurfaceFormat aFormat) {
-  switch (aFormat) {
-    case SurfaceFormat::B8G8R8X8:
-    case SurfaceFormat::R8G8B8X8:
-    case SurfaceFormat::X8R8G8B8:
-    case SurfaceFormat::YUV:
-    case SurfaceFormat::NV12:
-    case SurfaceFormat::YUV422:
-    case SurfaceFormat::R5G6B5_UINT16:
-      return true;
-    default:
-      return false;
   }
 }
 
@@ -220,24 +199,20 @@ private:
 };
 
 /**
- * Returns aWidth * aBytesPerPixel increased, if necessary, so that it divides
- * exactly into |alignment|.
+ * Returns aStride increased, if necessary, so that it divides exactly into
+ * |alignment|.
  *
  * Note that currently |alignment| must be a power-of-2. If for some reason we
  * want to support NPOT alignment we can revert back to this functions old
  * implementation.
  */
 template<int alignment>
-int32_t GetAlignedStride(int32_t aWidth, int32_t aBytesPerPixel)
+int32_t GetAlignedStride(int32_t aStride)
 {
   static_assert(alignment > 0 && (alignment & (alignment-1)) == 0,
                 "This implementation currently require power-of-two alignment");
   const int32_t mask = alignment - 1;
-  CheckedInt32 stride = CheckedInt32(aWidth) * CheckedInt32(aBytesPerPixel) + CheckedInt32(mask);
-  if (stride.isValid()) {
-    return stride.value() & ~mask;
-  }
-  return 0;
+  return (aStride + mask) & ~mask;
 }
 
 } // namespace gfx

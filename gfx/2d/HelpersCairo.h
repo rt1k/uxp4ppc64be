@@ -109,18 +109,18 @@ CairoAntialiasToGfxAntialias(cairo_antialias_t aAntialias)
 }
 
 static inline cairo_filter_t
-GfxSamplingFilterToCairoFilter(SamplingFilter filter)
+GfxFilterToCairoFilter(Filter filter)
 {
   switch (filter)
   {
-    case SamplingFilter::GOOD:
+    case Filter::GOOD:
       return CAIRO_FILTER_GOOD;
-    case SamplingFilter::LINEAR:
+    case Filter::LINEAR:
       return CAIRO_FILTER_BILINEAR;
-    case SamplingFilter::POINT:
+    case Filter::POINT:
       return CAIRO_FILTER_NEAREST;
     default:
-      MOZ_CRASH("GFX: bad Cairo filter");
+      MOZ_CRASH("bad filter");
   }
 
   return CAIRO_FILTER_BILINEAR;

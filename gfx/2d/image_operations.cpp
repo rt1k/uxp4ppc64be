@@ -1,5 +1,4 @@
 // Copyright (c) 2006-2012 The Chromium Authors. All rights reserved.
-// Copyright (c) 2018 Mark Straver BASc. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -40,7 +39,7 @@
 #include "skia/include/core/SkColorPriv.h"
 #include "skia/include/core/SkBitmap.h"
 #include "skia/include/core/SkRect.h"
-#include "skia/include/core/SkFontLCDConfig.h"
+#include "skia/include/core/SkFontHost.h"
 
 namespace skia {
 
@@ -108,7 +107,7 @@ void ComputeFilters(ImageOperations::ResizeMethod method,
 
     // Compute the unnormalized filter value at each location of the source
     // it covers.
-    float filter_sum = 0.0f;  // Sum of the filter values for normalizing.
+    float filter_sum = 0.0f;  // Sub of the filter values for normalizing.
     for (int cur_filter_pixel = src_begin; cur_filter_pixel <= src_end;
          cur_filter_pixel++) {
       // Distance from the center of the filter, this is the filter coordinate
@@ -159,22 +158,28 @@ void ComputeFilters(ImageOperations::ResizeMethod method,
 
 ImageOperations::ResizeMethod ResizeMethodToAlgorithmMethod(
     ImageOperations::ResizeMethod method) {
-  // If we already have an "Algorithm Method", just return that.
+  // Convert any "Quality Method" into an "Algorithm Method"
   if (method >= ImageOperations::RESIZE_FIRST_ALGORITHM_METHOD &&
       method <= ImageOperations::RESIZE_LAST_ALGORITHM_METHOD) {
     return method;
   }
-  // Convert any "Quality Method" into an "Algorithm Method"
+  // The call to ImageOperationsGtv::Resize() above took care of
+  // GPU-acceleration in the cases where it is possible. So now we just
+  // pick the appropriate software method for each resize quality.
   switch (method) {
+    // Users of RESIZE_GOOD are willing to trade a lot of quality to
+    // get speed, allowing the use of linear resampling to get hardware
+    // acceleration (SRB). Hence any of our "good" software filters
+    // will be acceptable, and we use the fastest one, Hamming-1.
     case ImageOperations::RESIZE_GOOD:
-      // Users of RESIZE_GOOD are willing to trade quality to get speed.
-      // In visual tests we see that Hamming-1 is not as good as
-      // Lanczos-2, however it is about 40% faster, and Lanczos-2 itself is
+      // Users of RESIZE_BETTER are willing to trade some quality in order
+      // to improve performance, but are guaranteed not to devolve to a linear
+      // resampling. In visual tests we see that Hamming-1 is not as good as
+      // Lanczos-2, however it is about 40% faster and Lanczos-2 itself is
       // about 30% faster than Lanczos-3. The use of Hamming-1 has been deemed
-      // an unacceptable trade-off between quality and speed due to the limited
-      // pixel space it operates in, so we pick Lanczos-2 here.
+      // an acceptable trade-off between quality and speed.
     case ImageOperations::RESIZE_BETTER:
-      return ImageOperations::RESIZE_LANCZOS2;
+      return ImageOperations::RESIZE_HAMMING1;
     default:
       return ImageOperations::RESIZE_LANCZOS3;
   }
@@ -200,21 +205,21 @@ SkBitmap ImageOperations::ResizeSubpixel(const SkBitmap& source,
                                          int dest_width, int dest_height,
                                          const SkIRect& dest_subset) {
   // Currently only works on Linux/BSD because these are the only platforms
-  // where SkFontLCDConfig::GetSubpixelOrder is defined.
+  // where SkFontHost::GetSubpixelOrder is defined.
 #if defined(XP_UNIX)
   // Understand the display.
-  const SkFontLCDConfig::LCDOrder order = SkFontLCDConfig::GetSubpixelOrder();
-  const SkFontLCDConfig::LCDOrientation orientation =
-      SkFontLCDConfig::GetSubpixelOrientation();
+  const SkFontHost::LCDOrder order = SkFontHost::GetSubpixelOrder();
+  const SkFontHost::LCDOrientation orientation =
+      SkFontHost::GetSubpixelOrientation();
 
   // Decide on which dimension, if any, to deploy subpixel rendering.
   int w = 1;
   int h = 1;
   switch (orientation) {
-    case SkFontLCDConfig::kHorizontal_LCDOrientation:
+    case SkFontHost::kHorizontal_LCDOrientation:
       w = dest_width < source.width() ? 3 : 1;
       break;
-    case SkFontLCDConfig::kVertical_LCDOrientation:
+    case SkFontHost::kVertical_LCDOrientation:
       h = dest_height < source.height() ? 3 : 1;
       break;
   }
@@ -255,15 +260,15 @@ SkBitmap ImageOperations::ResizeSubpixel(const SkBitmap& source,
     for (int x = 0; x < dest_subset.width(); x++, src += w, dst++) {
       uint8_t r = 0, g = 0, b = 0, a = 0;
       switch (order) {
-        case SkFontLCDConfig::kRGB_LCDOrder:
+        case SkFontHost::kRGB_LCDOrder:
           switch (orientation) {
-            case SkFontLCDConfig::kHorizontal_LCDOrientation:
+            case SkFontHost::kHorizontal_LCDOrientation:
               r = SkGetPackedR32(src[0]);
               g = SkGetPackedG32(src[1]);
               b = SkGetPackedB32(src[2]);
               a = SkGetPackedA32(src[1]);
               break;
-            case SkFontLCDConfig::kVertical_LCDOrientation:
+            case SkFontHost::kVertical_LCDOrientation:
               r = SkGetPackedR32(src[0 * row_words]);
               g = SkGetPackedG32(src[1 * row_words]);
               b = SkGetPackedB32(src[2 * row_words]);
@@ -271,15 +276,15 @@ SkBitmap ImageOperations::ResizeSubpixel(const SkBitmap& source,
               break;
           }
           break;
-        case SkFontLCDConfig::kBGR_LCDOrder:
+        case SkFontHost::kBGR_LCDOrder:
           switch (orientation) {
-            case SkFontLCDConfig::kHorizontal_LCDOrientation:
+            case SkFontHost::kHorizontal_LCDOrientation:
               b = SkGetPackedB32(src[0]);
               g = SkGetPackedG32(src[1]);
               r = SkGetPackedR32(src[2]);
               a = SkGetPackedA32(src[1]);
               break;
-            case SkFontLCDConfig::kVertical_LCDOrientation:
+            case SkFontHost::kVertical_LCDOrientation:
               b = SkGetPackedB32(src[0 * row_words]);
               g = SkGetPackedG32(src[1 * row_words]);
               r = SkGetPackedR32(src[2 * row_words]);
@@ -287,7 +292,7 @@ SkBitmap ImageOperations::ResizeSubpixel(const SkBitmap& source,
               break;
           }
           break;
-        case SkFontLCDConfig::kNONE_LCDOrder:
+        case SkFontHost::kNONE_LCDOrder:
           break;
       }
       // Premultiplied alpha is very fragile.

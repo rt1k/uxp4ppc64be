@@ -15,27 +15,15 @@
 
 #include "2D.h"
 
+// For 10.4
+typedef unsigned int PRUint32;
+typedef int PRInt32;
+#include "../thebes/PhonyCoreText.h"
+
 #include "ScaledFontBase.h"
 
 namespace mozilla {
 namespace gfx {
-
-class GlyphRenderingOptionsCG : public GlyphRenderingOptions
-{
-public:
-  MOZ_DECLARE_REFCOUNTED_VIRTUAL_TYPENAME(GlyphRenderingOptionsCG, override)
-
-  explicit GlyphRenderingOptionsCG(const Color &aFontSmoothingBackgroundColor)
-    : mFontSmoothingBackgroundColor(aFontSmoothingBackgroundColor)
-  {}
-
-  const Color &FontSmoothingBackgroundColor() const { return mFontSmoothingBackgroundColor; }
-
-  virtual FontType GetType() const override { return FontType::MAC; }
-
-private:
-  Color mFontSmoothingBackgroundColor;
-};
 
 class ScaledFontMac : public ScaledFontBase
 {
@@ -49,14 +37,11 @@ public:
   virtual SkTypeface* GetSkTypeface();
 #endif
   virtual already_AddRefed<Path> GetPathForGlyphs(const GlyphBuffer &aBuffer, const DrawTarget *aTarget);
+  virtual void CopyGlyphsToBuilder(const GlyphBuffer &aBuffer, PathBuilder *aBuilder, BackendType aBackendType, const Matrix *aTransformHint);
   virtual bool GetFontFileData(FontFileDataOutput aDataCallback, void *aBaton);
 
-#ifdef USE_CAIRO_SCALED_FONT
-  cairo_font_face_t* GetCairoFontFace();
-#endif
-
 private:
-  friend class DrawTargetSkia;
+  friend class DrawTargetCG;
   CGFontRef mFont;
   CTFontRef mCTFont; // only created if CTFontDrawGlyphs is available, otherwise null
 

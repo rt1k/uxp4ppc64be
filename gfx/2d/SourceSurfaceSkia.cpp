@@ -6,22 +6,27 @@
 
 #include "Logging.h"
 #include "SourceSurfaceSkia.h"
+#include "skia/include/core/SkBitmap.h"
+#include "skia/include/core/SkDevice.h"
 #include "HelpersSkia.h"
 #include "DrawTargetSkia.h"
 #include "DataSurfaceHelpers.h"
-#include "skia/include/core/SkData.h"
-#include "mozilla/CheckedInt.h"
+
+#ifdef USE_SKIA_GPU
+#include "skia/include/gpu/SkGrPixelRef.h"
+#endif
 
 namespace mozilla {
 namespace gfx {
 
 SourceSurfaceSkia::SourceSurfaceSkia()
-  : mDrawTarget(nullptr)
+  : mDrawTarget(nullptr), mLocked(false)
 {
 }
 
 SourceSurfaceSkia::~SourceSurfaceSkia()
 {
+  MaybeUnlock();
   if (mDrawTarget) {
     mDrawTarget->SnapshotDestroyed();
     mDrawTarget = nullptr;
@@ -40,131 +45,116 @@ SourceSurfaceSkia::GetFormat() const
   return mFormat;
 }
 
-static sk_sp<SkData>
-MakeSkData(unsigned char* aData, const IntSize& aSize, int32_t aStride)
+bool
+SourceSurfaceSkia::InitFromCanvas(SkCanvas* aCanvas,
+                                  SurfaceFormat aFormat,
+                                  DrawTargetSkia* aOwner)
 {
-  CheckedInt<size_t> size = aStride;
-  size *= aSize.height;
-  if (size.isValid()) {
-    void* mem = sk_malloc_flags(size.value(), 0);
-    if (mem) {
-      if (aData) {
-        memcpy(mem, aData, size.value());
-      }
-      return SkData::MakeFromMalloc(mem, size.value());
-    }
-  }
-  return nullptr;
+  SkISize size = aCanvas->getDeviceSize();
+
+  mBitmap = (SkBitmap)aCanvas->getDevice()->accessBitmap(false);
+
+  mFormat = aFormat;
+
+  mSize = IntSize(size.fWidth, size.fHeight);
+  mStride = mBitmap.rowBytes();
+  mDrawTarget = aOwner;
+
+  return true;
 }
 
-bool
+bool 
 SourceSurfaceSkia::InitFromData(unsigned char* aData,
                                 const IntSize &aSize,
                                 int32_t aStride,
                                 SurfaceFormat aFormat)
 {
-  sk_sp<SkData> data = MakeSkData(aData, aSize, aStride);
-  if (!data) {
+  SkBitmap temp;
+  SkAlphaType alphaType = (aFormat == SurfaceFormat::B8G8R8X8) ?
+    kOpaque_SkAlphaType : kPremul_SkAlphaType;
+
+  SkImageInfo info = SkImageInfo::Make(aSize.width,
+                                       aSize.height,
+                                       GfxFormatToSkiaColorType(aFormat),
+                                       alphaType);
+  temp.setInfo(info, aStride);
+  temp.setPixels(aData);
+
+  if (!temp.copyTo(&mBitmap, GfxFormatToSkiaColorType(aFormat))) {
     return false;
   }
 
-  SkImageInfo info = MakeSkiaImageInfo(aSize, aFormat);
-  mImage = SkImage::MakeRasterData(info, data, aStride);
-  if (!mImage) {
-    return false;
+  if (aFormat == SurfaceFormat::B8G8R8X8) {
+    mBitmap.setAlphaType(kIgnore_SkAlphaType);
   }
 
   mSize = aSize;
   mFormat = aFormat;
-  mStride = aStride;
+  mStride = mBitmap.rowBytes();
   return true;
 }
 
 bool
-SourceSurfaceSkia::InitFromImage(sk_sp<SkImage> aImage,
-                                 SurfaceFormat aFormat,
-                                 DrawTargetSkia* aOwner)
+SourceSurfaceSkia::InitFromTexture(DrawTargetSkia* aOwner,
+                                   unsigned int aTexture,
+                                   const IntSize &aSize,
+                                   SurfaceFormat aFormat)
 {
-  if (!aImage) {
-    return false;
-  }
+  MOZ_ASSERT(aOwner, "null GrContext");
+#ifdef USE_SKIA_GPU
+  GrBackendTextureDesc skiaTexGlue;
+  mSize.width = skiaTexGlue.fWidth = aSize.width;
+  mSize.height = skiaTexGlue.fHeight = aSize.height;
+  skiaTexGlue.fFlags = kNone_GrBackendTextureFlag;
+  skiaTexGlue.fOrigin = kTopLeft_GrSurfaceOrigin;
+  skiaTexGlue.fConfig = GfxFormatToGrConfig(aFormat);
+  skiaTexGlue.fSampleCnt = 0;
+  skiaTexGlue.fTextureHandle = aTexture;
 
-  mSize = IntSize(aImage->width(), aImage->height());
+  GrTexture *skiaTexture = aOwner->mGrContext->wrapBackendTexture(skiaTexGlue);
+  SkImageInfo imgInfo = SkImageInfo::Make(aSize.width, aSize.height, GfxFormatToSkiaColorType(aFormat), kOpaque_SkAlphaType);
+  SkGrPixelRef *texRef = new SkGrPixelRef(imgInfo, skiaTexture, false);
+  mBitmap.setInfo(imgInfo);
+  mBitmap.setPixelRef(texRef);
+  mFormat = aFormat;
+  mStride = mBitmap.rowBytes();
+#endif
 
-  // For the raster image case, we want to use the format and stride
-  // information that the underlying raster image is using, which is
-  // reliable.
-  // For the GPU case (for which peekPixels is false), we can't easily
-  // figure this information out. It is better to report the originally
-  // intended format and stride that we will convert to if this GPU
-  // image is ever read back into a raster image.
-  SkPixmap pixmap;
-  if (aImage->peekPixels(&pixmap)) {
-    mFormat =
-      aFormat != SurfaceFormat::UNKNOWN ?
-        aFormat :
-        SkiaColorTypeToGfxFormat(pixmap.colorType(), pixmap.alphaType());
-    mStride = pixmap.rowBytes();
-  } else if (aFormat != SurfaceFormat::UNKNOWN) {
-    mFormat = aFormat;
-    SkImageInfo info = MakeSkiaImageInfo(mSize, mFormat);
-    mStride = SkAlign4(info.minRowBytes());
-  } else {
-    return false;
-  }
-
-  mImage = aImage;
-
-  if (aOwner) {
-    mDrawTarget = aOwner;
-  }
-
+  mDrawTarget = aOwner;
   return true;
 }
 
-uint8_t*
+unsigned char*
 SourceSurfaceSkia::GetData()
 {
-#ifdef USE_SKIA_GPU
-  if (mImage->isTextureBacked()) {
-    sk_sp<SkImage> raster;
-    if (sk_sp<SkData> data = MakeSkData(nullptr, mSize, mStride)) {
-      SkImageInfo info = MakeSkiaImageInfo(mSize, mFormat);
-      if (mImage->readPixels(info, data->writable_data(), mStride, 0, 0, SkImage::kDisallow_CachingHint)) {
-        raster = SkImage::MakeRasterData(info, data, mStride);
-      }
-    }
-    if (raster) {
-      mImage = raster;
-    } else {
-      gfxCriticalError() << "Failed making Skia raster image for GPU surface";
-    }
+  if (!mLocked) {
+    mBitmap.lockPixels();
+    mLocked = true;
   }
-#endif
-  SkPixmap pixmap;
-  if (!mImage->peekPixels(&pixmap)) {
-    gfxCriticalError() << "Failed accessing pixels for Skia raster image";
-  }
-  return reinterpret_cast<uint8_t*>(pixmap.writable_addr());
+
+  unsigned char *pixels = (unsigned char *)mBitmap.getPixels();
+  return pixels;
 }
 
 void
 SourceSurfaceSkia::DrawTargetWillChange()
 {
   if (mDrawTarget) {
-    // Raster snapshots do not use Skia's internal copy-on-write mechanism,
-    // so we need to do an explicit copy here.
-    // GPU snapshots, for which peekPixels is false, will already be dealt
-    // with automatically via the internal copy-on-write mechanism, so we
-    // don't need to do anything for them here.
-    SkPixmap pixmap;
-    if (mImage->peekPixels(&pixmap)) {
-      mImage = SkImage::MakeRasterCopy(pixmap);
-      if (!mImage) {
-        gfxCriticalError() << "Failed copying Skia raster snapshot";
-      }
-    }
+    MaybeUnlock();
+
     mDrawTarget = nullptr;
+    SkBitmap temp = mBitmap;
+    mBitmap.reset();
+    temp.copyTo(&mBitmap, temp.colorType());
+  }
+}
+
+void
+SourceSurfaceSkia::MaybeUnlock()
+{
+  if (mLocked) {
+    mBitmap.unlockPixels();
+    mLocked = false;
   }
 }
 

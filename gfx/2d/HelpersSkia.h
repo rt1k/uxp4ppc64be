@@ -15,7 +15,7 @@
 #endif
 #include "mozilla/Assertions.h"
 #include <vector>
-#include "nsDebug.h"
+#include "RefPtrSkia.h"
 
 namespace mozilla {
 namespace gfx {
@@ -40,13 +40,12 @@ GfxFormatToSkiaColorType(SurfaceFormat format)
 }
 
 static inline SurfaceFormat
-SkiaColorTypeToGfxFormat(SkColorType aColorType, SkAlphaType aAlphaType = kPremul_SkAlphaType)
+SkiaColorTypeToGfxFormat(SkColorType type)
 {
-  switch (aColorType)
+  switch (type)
   {
     case kBGRA_8888_SkColorType:
-      return aAlphaType == kOpaque_SkAlphaType ?
-               SurfaceFormat::B8G8R8X8 : SurfaceFormat::B8G8R8A8;
+      return SurfaceFormat::B8G8R8A8;
     case kRGB_565_SkColorType:
       return SurfaceFormat::R5G6B5_UINT16;
     case kAlpha_8_SkColorType:
@@ -54,27 +53,6 @@ SkiaColorTypeToGfxFormat(SkColorType aColorType, SkAlphaType aAlphaType = kPremu
     default:
       return SurfaceFormat::B8G8R8A8;
   }
-}
-
-static inline SkAlphaType
-GfxFormatToSkiaAlphaType(SurfaceFormat format)
-{
-  switch (format)
-  {
-    case SurfaceFormat::B8G8R8X8:
-    case SurfaceFormat::R5G6B5_UINT16:
-      return kOpaque_SkAlphaType;
-    default:
-      return kPremul_SkAlphaType;
-  }
-}
-
-static inline SkImageInfo
-MakeSkiaImageInfo(const IntSize& aSize, SurfaceFormat aFormat)
-{
-  return SkImageInfo::Make(aSize.width, aSize.height,
-                           GfxFormatToSkiaColorType(aFormat),
-                           GfxFormatToSkiaAlphaType(aFormat));
 }
 
 #ifdef USE_SKIA_GPU
@@ -104,14 +82,6 @@ GfxMatrixToSkiaMatrix(const Matrix& mat, SkMatrix& retval)
     retval.setAll(SkFloatToScalar(mat._11), SkFloatToScalar(mat._21), SkFloatToScalar(mat._31),
                   SkFloatToScalar(mat._12), SkFloatToScalar(mat._22), SkFloatToScalar(mat._32),
                   0, 0, SK_Scalar1);
-}
-
-static inline void
-GfxMatrixToSkiaMatrix(const Matrix4x4& aMatrix, SkMatrix& aResult)
-{
-  aResult.setAll(SkFloatToScalar(aMatrix._11), SkFloatToScalar(aMatrix._21), SkFloatToScalar(aMatrix._41),
-                 SkFloatToScalar(aMatrix._12), SkFloatToScalar(aMatrix._22), SkFloatToScalar(aMatrix._42),
-                 SkFloatToScalar(aMatrix._14), SkFloatToScalar(aMatrix._24), SkFloatToScalar(aMatrix._44));
 }
 
 static inline SkPaint::Cap
@@ -150,8 +120,7 @@ StrokeOptionsToPaint(SkPaint& aPaint, const StrokeOptions &aOptions)
 {
   // Skia renders 0 width strokes with a width of 1 (and in black),
   // so we should just skip the draw call entirely.
-  // Skia does not handle non-finite line widths.
-  if (!aOptions.mLineWidth || !IsFinite(aOptions.mLineWidth)) {
+  if (!aOptions.mLineWidth) {
     return false;
   }
   aPaint.setStrokeWidth(SkFloatToScalar(aOptions.mLineWidth));
@@ -174,77 +143,88 @@ StrokeOptionsToPaint(SkPaint& aPaint, const StrokeOptions &aOptions)
 
     for (uint32_t i = 0; i < dashCount; i++) {
       pattern[i] = SkFloatToScalar(aOptions.mDashPattern[i % aOptions.mDashLength]);
+      // bugs 1002466 & 1214309 - Dash intervals that are (close to) zero
+      // are skipped, ignoring other stroke settings. Nudge the dash interval
+      // to be just large enough that it is not interpreted as degenerate.
+      // Ideally this value would just be SK_ScalarNearlyZero, the smallest
+      // reasonable value that is not zero. But error in FP operations may
+      // cause dash intervals to result in a value less than this and still
+      // be skipped. To give some headroom to allow the value to still come
+      // out greater-than-but-still-close-to SK_ScalarNearlyZero, fudge it
+      // upward by *33/32.
+      if (pattern[i] == 0)
+          pattern[i] = SkScalarMulDiv(SK_ScalarNearlyZero, 33, 32);
     }
 
-    sk_sp<SkPathEffect> dash = SkDashPathEffect::Make(&pattern.front(),
+    SkDashPathEffect* dash = SkDashPathEffect::Create(&pattern.front(),
                                                       dashCount,
                                                       SkFloatToScalar(aOptions.mDashOffset));
-    aPaint.setPathEffect(dash);
+    SkSafeUnref(aPaint.setPathEffect(dash));
   }
 
   aPaint.setStyle(SkPaint::kStroke_Style);
   return true;
 }
 
-static inline SkBlendMode
+static inline SkXfermode::Mode
 GfxOpToSkiaOp(CompositionOp op)
 {
   switch (op)
   {
     case CompositionOp::OP_OVER:
-      return SkBlendMode::kSrcOver;
+      return SkXfermode::kSrcOver_Mode;
     case CompositionOp::OP_ADD:
-      return SkBlendMode::kPlus;
+      return SkXfermode::kPlus_Mode;
     case CompositionOp::OP_ATOP:
-      return SkBlendMode::kSrcATop;
+      return SkXfermode::kSrcATop_Mode;
     case CompositionOp::OP_OUT:
-      return SkBlendMode::kSrcOut;
+      return SkXfermode::kSrcOut_Mode;
     case CompositionOp::OP_IN:
-      return SkBlendMode::kSrcIn;
+      return SkXfermode::kSrcIn_Mode;
     case CompositionOp::OP_SOURCE:
-      return SkBlendMode::kSrc;
+      return SkXfermode::kSrc_Mode;
     case CompositionOp::OP_DEST_IN:
-      return SkBlendMode::kDstIn;
+      return SkXfermode::kDstIn_Mode;
     case CompositionOp::OP_DEST_OUT:
-      return SkBlendMode::kDstOut;
+      return SkXfermode::kDstOut_Mode;
     case CompositionOp::OP_DEST_OVER:
-      return SkBlendMode::kDstOver;
+      return SkXfermode::kDstOver_Mode;
     case CompositionOp::OP_DEST_ATOP:
-      return SkBlendMode::kDstATop;
+      return SkXfermode::kDstATop_Mode;
     case CompositionOp::OP_XOR:
-      return SkBlendMode::kXor;
+      return SkXfermode::kXor_Mode;
     case CompositionOp::OP_MULTIPLY:
-      return SkBlendMode::kMultiply;
+      return SkXfermode::kMultiply_Mode;
     case CompositionOp::OP_SCREEN:
-      return SkBlendMode::kScreen;
+      return SkXfermode::kScreen_Mode;
     case CompositionOp::OP_OVERLAY:
-      return SkBlendMode::kOverlay;
+      return SkXfermode::kOverlay_Mode;
     case CompositionOp::OP_DARKEN:
-      return SkBlendMode::kDarken;
+      return SkXfermode::kDarken_Mode;
     case CompositionOp::OP_LIGHTEN:
-      return SkBlendMode::kLighten;
+      return SkXfermode::kLighten_Mode;
     case CompositionOp::OP_COLOR_DODGE:
-      return SkBlendMode::kColorDodge;
+      return SkXfermode::kColorDodge_Mode;
     case CompositionOp::OP_COLOR_BURN:
-      return SkBlendMode::kColorBurn;
+      return SkXfermode::kColorBurn_Mode;
     case CompositionOp::OP_HARD_LIGHT:
-      return SkBlendMode::kHardLight;
+      return SkXfermode::kHardLight_Mode;
     case CompositionOp::OP_SOFT_LIGHT:
-      return SkBlendMode::kSoftLight;
+      return SkXfermode::kSoftLight_Mode;
     case CompositionOp::OP_DIFFERENCE:
-      return SkBlendMode::kDifference;
+      return SkXfermode::kDifference_Mode;
     case CompositionOp::OP_EXCLUSION:
-      return SkBlendMode::kExclusion;
+      return SkXfermode::kExclusion_Mode;
     case CompositionOp::OP_HUE:
-      return SkBlendMode::kHue;
+      return SkXfermode::kHue_Mode;
     case CompositionOp::OP_SATURATION:
-      return SkBlendMode::kSaturation;
+      return SkXfermode::kSaturation_Mode;
     case CompositionOp::OP_COLOR:
-      return SkBlendMode::kColor;
+      return SkXfermode::kColor_Mode;
     case CompositionOp::OP_LUMINOSITY:
-      return SkBlendMode::kLuminosity;
+      return SkXfermode::kLuminosity_Mode;
     default:
-      return SkBlendMode::kSrcOver;
+      return SkXfermode::kSrcOver_Mode;
   }
 }
 
@@ -351,43 +331,6 @@ GfxHintingToSkiaHinting(FontHinting aHinting)
       return SkPaint::kFull_Hinting;
   }
   return SkPaint::kNormal_Hinting;
-}
-
-static inline FillRule GetFillRule(SkPath::FillType aFillType)
-{
-  switch (aFillType)
-  {
-  case SkPath::kWinding_FillType:
-    return FillRule::FILL_WINDING;
-  case SkPath::kEvenOdd_FillType:
-    return FillRule::FILL_EVEN_ODD;
-  case SkPath::kInverseWinding_FillType:
-  case SkPath::kInverseEvenOdd_FillType:
-  default:
-    NS_WARNING("Unsupported fill type\n");
-    break;
-  }
-
-  return FillRule::FILL_EVEN_ODD;
-}
-
-/**
- * Returns true if the canvas is backed by pixels.  Returns false if the canvas
- * wraps an SkPDFDocument, for example.
- *
- * Note: It is not clear whether the test used to implement this function may
- * result in it returning false in some circumstances even when the canvas
- * _is_ pixel backed.  In other words maybe it is possible for such a canvas to
- * have kUnknown_SkPixelGeometry?
- */
-static inline bool IsBackedByPixels(const SkCanvas* aCanvas)
-{
-  SkSurfaceProps props(0, kUnknown_SkPixelGeometry);
-  if (!aCanvas->getProps(&props) ||
-      props.pixelGeometry() == kUnknown_SkPixelGeometry) {
-    return false;
-  }
-  return true;
 }
 
 } // namespace gfx

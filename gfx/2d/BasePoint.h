@@ -22,16 +22,11 @@ namespace gfx {
  */
 template <class T, class Sub, class Coord = T>
 struct BasePoint {
-  union {
-    struct {
-      T x, y;
-    };
-    T components[2];
-  };
+  T x, y;
 
   // Constructors
-  constexpr BasePoint() : x(0), y(0) {}
-  constexpr BasePoint(Coord aX, Coord aY) : x(aX), y(aY) {}
+  MOZ_CONSTEXPR BasePoint() : x(0), y(0) {}
+  MOZ_CONSTEXPR BasePoint(Coord aX, Coord aY) : x(aX), y(aY) {}
 
   void MoveTo(T aX, T aY) { x = aX; y = aY; }
   void MoveBy(T aDx, T aDy) { x += aDx; y += aDy; }
@@ -78,12 +73,8 @@ struct BasePoint {
       return x * aPoint.x + y * aPoint.y;
   }
 
-  Coord Length() const {
+  T Length() const {
     return hypot(x, y);
-  }
-
-  T LengthSquare() const {
-    return x * x + y * y;
   }
 
   // Round() is *not* rounding to nearest integer if the values are negative.

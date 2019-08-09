@@ -1,3 +1,4 @@
+#if(0)
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 // vim:set ts=2 sts=2 sw=2 et cin:
 /* This Source Code Form is subject to the terms of the Mozilla Public
@@ -110,14 +111,12 @@ public:
   size_t GetDevicePixelWidth(size_t plane = 0);
   size_t GetDevicePixelHeight(size_t plane = 0);
   size_t GetBytesPerRow(size_t plane = 0);
-  void Lock(bool aReadOnly = true);
-  void Unlock(bool aReadOnly = true);
+  void Lock();
+  void Unlock();
   void IncrementUseCount();
   void DecrementUseCount();
   bool HasAlpha() { return mHasAlpha; }
   mozilla::gfx::SurfaceFormat GetFormat();
-  mozilla::gfx::SurfaceFormat GetReadFormat();
-
   // We would like to forward declare NSOpenGLContext, but it is an @interface
   // and this file is also used from c++, so we use a void *.
   CGLError CGLTexImageIOSurface2D(CGLContextObj ctxt, size_t plane = 0);
@@ -218,5 +217,6 @@ public:
   } sLibraryUnloader;
 };
 
+#endif
 #endif
 #endif

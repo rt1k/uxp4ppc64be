@@ -74,32 +74,32 @@ public:
       return;
     case PatternType::SURFACE:
     {
-      SurfacePattern* surfPat = new (mSurface)SurfacePattern(*static_cast<const SurfacePattern*>(&aPattern));
+      SurfacePattern* surfPat = new (mColor)SurfacePattern(*static_cast<const SurfacePattern*>(&aPattern));
       surfPat->mSurface->GuaranteePersistance();
       return;
     }
     case PatternType::LINEAR_GRADIENT:
-      new (mLinear)LinearGradientPattern(*static_cast<const LinearGradientPattern*>(&aPattern));
+      new (mColor)LinearGradientPattern(*static_cast<const LinearGradientPattern*>(&aPattern));
       return;
     case PatternType::RADIAL_GRADIENT:
-      new (mRadial)RadialGradientPattern(*static_cast<const RadialGradientPattern*>(&aPattern));
+      new (mColor)RadialGradientPattern(*static_cast<const RadialGradientPattern*>(&aPattern));
       return;
     }
   }
 
   ~StoredPattern()
   {
-    reinterpret_cast<Pattern*>(mPattern)->~Pattern();
+    reinterpret_cast<Pattern*>(mColor)->~Pattern();
   }
 
   operator Pattern&()
   {
-    return *reinterpret_cast<Pattern*>(mPattern);
+    return *reinterpret_cast<Pattern*>(mColor);
   }
 
   operator const Pattern&() const
   {
-    return *reinterpret_cast<const Pattern*>(mPattern);
+    return *reinterpret_cast<const Pattern*>(mColor);
   }
 
   StoredPattern(const StoredPattern& aPattern)
@@ -115,7 +115,6 @@ private:
   }
 
   union {
-    char mPattern[sizeof(Pattern)];
     char mColor[sizeof(ColorPattern)];
     char mLinear[sizeof(LinearGradientPattern)];
     char mRadial[sizeof(RadialGradientPattern)];
@@ -208,7 +207,7 @@ public:
     MOZ_ASSERT(!aTransform || !aTransform->HasNonIntegerTranslation());
     Point dest(Float(mDestination.x), Float(mDestination.y));
     if (aTransform) {
-      dest = aTransform->TransformPoint(dest);
+      dest = (*aTransform) * dest;
     }
     aDT->CopySurface(mSurface, mSourceRect, IntPoint(uint32_t(dest.x), uint32_t(dest.y)));
   }

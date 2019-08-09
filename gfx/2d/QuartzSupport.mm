@@ -1,3 +1,5 @@
+// 10.4 doesn't support any of this.
+#if(0)
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 // vim:set ts=2 sts=2 sw=2 et cin:
 /* This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,7 +9,6 @@
 #include "QuartzSupport.h"
 #include "nsDebug.h"
 #include "MacIOSurface.h"
-#include "mozilla/Sprintf.h"
 
 #import <QuartzCore/QuartzCore.h>
 #import <AppKit/NSOpenGL.h>
@@ -596,7 +597,8 @@ void nsCARenderer::SaveToDisk(MacIOSurface *surf) {
   }
 
   char cstr[1000];
-  SprintfLiteral(cstr, "file:///Users/benoitgirard/debug/iosurface_%i.png", ++sSaveToDiskSequence);
+
+  sprintf(cstr, "file:///Users/benoitgirard/debug/iosurface_%i.png", ++sSaveToDiskSequence);
 
   CFStringRef cfStr = ::CFStringCreateWithCString(kCFAllocatorDefault, cstr, kCFStringEncodingMacRoman);
 
@@ -623,3 +625,4 @@ void nsCARenderer::SaveToDisk(MacIOSurface *surf) {
 }
 
 #endif
+#endif // 10.4
