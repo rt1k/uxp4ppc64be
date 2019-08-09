@@ -1,3 +1,0 @@
-palemoon binary: embedded-library usr/lib/palemoon/libxul.so: libjpeg
-palemoon binary: embedded-library usr/lib/palemoon/libmozsqlite3.so: sqlite
-palemoon binary: image-file-in-usr-lib

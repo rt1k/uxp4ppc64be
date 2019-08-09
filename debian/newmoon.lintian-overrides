@@ -1,0 +1,3 @@
+newmoon binary: embedded-library usr/lib/newmoon/libxul.so: libjpeg
+newmoon binary: embedded-library usr/lib/newmoon/libmozsqlite3.so: sqlite
+newmoon binary: image-file-in-usr-lib

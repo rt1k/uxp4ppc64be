@@ -1,4 +1,4 @@
-Source: palemoon
+Source: newmoon
 Section: web
 Priority: optional
 Maintainer: Roberto Guardato <team@powerprogress.org>
@@ -23,14 +23,14 @@ Build-Depends: debhelper (>= 9),
 Standards-Version: 3.9.6
 Homepage: http://www.palemoon.org/
 
-Package: palemoon
+Package: newmoon
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
          libavcodec54 | libavcodec-extra54 |libavcodec55 | libavcodec-extra55 | libavcodec56 | libavcodec-extra56 | libavcodec57 | libavcodec-extra57 | libavcodec58 | libavcodec-extra58 | libavcodec-ffmpeg56 | libavcodec-ffmpeg-extra56
 Provides: x-www-browser
-Conflicts: palemoon
-Replaces: palemoon
+Conflicts: newmoon
+Replaces: newmoon
 Description: Firefox-based, efficient and easy to use web browser
- Pale Moon offers selected features and optimizations to maximize the browser's speed, stability and user experience, while maintaining
+ New Moon is unofficial Pale Moon port that offers selected features and optimizations to maximize the browser's speed, stability and user experience, while maintaining
  compatibility with the thousands of Firefox extensions you have come 
  to love and rely on.
