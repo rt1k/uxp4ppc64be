@@ -8,8 +8,8 @@
 # These values where appropriate are hardcoded in application.ini
 # to "Pale Moon" and "Moonchild Productions" respectively for
 # Pale Moon
-MOZ_APP_BASENAME=Palemoon
-MOZ_APP_VENDOR=Moonchild
+MOZ_APP_BASENAME=NewMoon
+MOZ_APP_VENDOR=www.powerprogress.org
 
 # Application Version
 # MOZ_APP_VERSION is read from ./config/version.txt

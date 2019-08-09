@@ -158,7 +158,7 @@ endif
 
 
 libs::
-	$(MAKE) -C $(DEPTH)/application/palemoon/locales langpack
+	$(MAKE) -C $(DEPTH)/application/newmoon/locales langpack
 
 ifeq (WINNT,$(OS_ARCH))
 PKGCOMP_FIND_OPTS =
