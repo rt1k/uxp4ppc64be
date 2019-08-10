@@ -310,7 +310,9 @@ def old_configure_options(*options):
     # Below are configure flags used by Pale Moon
     '--disable-browser-statusbar',
     '--disable-sync',
-    
+    '--enable-tenfourfox-vmx',
+    '--enable-tenfourfox-g5',
+
     # Below are configure flags used by Basilisk
     '--disable-webextensions',
 )
