@@ -107,7 +107,7 @@
           &brandFullName; is released by &vendorShortName;.
         </description>
         <description class="text-blurb">
-          This is a private build of Pale Moon. If you did not manually build this copy from source yourself, then please download an official version from <label class="text-link" href="https://repo.powerprogress.org/">our repository</label>.
+          This is a development build of New Moon. Latest build can be downloaded from <label class="text-link" href="https://repo.powerprogress.org/">our repository</label>.
 #endif
         </description>    
         </vbox>
