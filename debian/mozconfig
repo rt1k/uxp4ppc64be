@@ -2,8 +2,14 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-export CC="gcc -flax-vector-conversions -falign-loops=64 -falign-functions=64 -falign-labels=64 -falign-jumps=64"
-export CXX="g++ -flax-vector-conversions -fpermissive -falign-loops=64 -falign-functions=64 -falign-labels=64 -falign-jumps=64"
+#original
+#export CC="gcc -flax-vector-conversions -falign-loops=64 -falign-functions=64 -falign-labels=64 -falign-jumps=64"
+#export CXX="g++ -flax-vector-conversions -fpermissive -falign-loops=64 -falign-functions=64 -falign-labels=64 -falign-jumps=64"
+
+#new
+export CC="gcc -flax-vector-conversions"
+export CXX="g++ -flax-vector-conversions -fpermissive"
+
 export LDFLAGS="-latomic"
 #ac_add_options --enable-release
 #ac_add_options  --enable-official-branding
@@ -19,7 +25,10 @@ ac_add_options --disable-mozril-geoloc
 ac_add_options --disable-webrtc
 ac_add_options --disable-safe-browsing
 ac_add_options --disable-necko-wifi
-ac_add_options --disable-eme
+
+#try enable EME
+#ac_add_options --disable-eme
+
 ac_add_options --disable-gamepad
 ac_add_options --disable-dbus
 ac_add_options --disable-gio
@@ -29,7 +38,10 @@ ac_add_options --enable-install-strip
 ac_add_options --enable-application=application/palemoon
 #ac_add_options --disable-startupcache
 #ac_add_options --with-branding=browser/branding/newmoon
-ac_add_options --enable-optimize="-O3 -mcpu=G5 -fno-schedule-insns2 -fno-lifetime-dse -fno-delete-null-pointer-checks"
+
+#ac_add_options --enable-optimize="-O3 -mcpu=G5 -fno-schedule-insns2 -fno-lifetime-dse -fno-delete-null-pointer-checks"
+ac_add_options --enable-optimize="-O3 -mcpu=G5"
+
 ac_add_options --disable-jemalloc
 ac_add_options --enable-default-toolkit=cairo-gtk2
 #ac_add_options --enable-optimize=-O2
