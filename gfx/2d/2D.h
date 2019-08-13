@@ -1319,7 +1319,8 @@ public:
   static void ShutDown();
 
   static bool HasSSE2();
-
+  static bool HasVMX();
+  
   /**
    * Returns false if any of the following are true:
    *
