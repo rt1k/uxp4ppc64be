@@ -13,6 +13,13 @@ EXPORTS.vpx += files['EXPORTS']
 
 SOURCES += files['SOURCES']
 
+#PPC VMX
+SOURCES += [
+	'vp9/common/ppc/vp9_convolve_vmx.c',
+	'vp9/common/ppc/vp9_idct_intrin_vmx.c',
+	'vp9/common/ppc/vp9_intrapred_vmx.c',
+	]
+
 if CONFIG['MOZ_VPX_ERROR_CONCEALMENT']:
     SOURCES += files['ERROR_CONCEALMENT']
 
