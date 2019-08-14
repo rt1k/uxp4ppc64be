@@ -22,6 +22,10 @@
 #include "vp9_rtcd_x86-win32-gcc.h"
 #endif
 
+#elif defined(TENFOURFOX_VMX)
+/* PPC VMX  */
+#include "vp9_rtcd_ppc_altivec.h"
+
 #elif defined(__APPLE__) && defined(__x86_64__)
 /* 64 bit MacOS. */
 #include "vp9_rtcd_x86_64-darwin9-gcc.h"
