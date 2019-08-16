@@ -1,6 +1,6 @@
-newmoon (28.2019.04.24) UNRELEASED; urgency=medium
+powermoon (28.0.0) UNRELEASED; urgency=medium
 
   [ rt1k ]
-  * initial port based on wicknix PPC32 repository
+  * initial port
 
- -- Roberto Guardato <team@powerprogress.org>  Fri, 26 Jul 2019 17:00:03 +0000
+ -- Roberto Guardato <team@powerprogress.org>  Fri, 15 Aug 2019 18:00:03 +0000

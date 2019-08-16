@@ -2,10 +2,10 @@
 
 if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-remove" ] ; then
     update-alternatives --install /usr/bin/gnome-www-browser \
-        gnome-www-browser /usr/bin/newmoon 40
+        gnome-www-browser /usr/bin/powermoon 40
 
     update-alternatives --install /usr/bin/x-www-browser \
-        x-www-browser /usr/bin/newmoon 40
+        x-www-browser /usr/bin/powermoon 40
 fi
 
 #DEBHELPER#

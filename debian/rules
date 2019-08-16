@@ -19,14 +19,14 @@ override_dh_auto_build:
 	make -f client.mk build
 	
 override_dh_auto_install:
-	make -f client.mk DESTDIR=$$(pwd)/debian/newmoon prefix=/usr \
-        installdir=/usr/lib/newmoon \
-        sdkdir=/usr/lib/newmoon-devel install
-	rm -rf $$(pwd)/debian/newmoon/usr/share/idl
-	rm -rf $$(pwd)/debian/newmoon/lib/newmoon-devel
-	rm -rf $$(pwd)/debian/newmoon/usr/include
+	make -f client.mk DESTDIR=$$(pwd)/debian/powermoon prefix=/usr \
+        installdir=/usr/lib/powermoon \
+        sdkdir=/usr/lib/powermoon-devel install
+	rm -rf $$(pwd)/debian/powermoon/usr/share/idl
+	rm -rf $$(pwd)/debian/powermoon/lib/powermoon-devel
+	rm -rf $$(pwd)/debian/powermoon/usr/include
 # remove vestigial duplicate file
-	rm -rf $$(pwd)/debian/newmoon/usr/lib/newmoon/newmoon-bin
+	rm -rf $$(pwd)/debian/powermoon/usr/lib/powermoon/powermoon-bin
 
 override_dh_shlibdeps:
-	dh_shlibdeps -l /usr/lib/newmoon
+	dh_shlibdeps -l /usr/lib/powermoon

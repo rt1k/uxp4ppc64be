@@ -1,0 +1,3 @@
+powermoon binary: embedded-library usr/lib/powermoon/libxul.so: libjpeg
+powermoon binary: embedded-library usr/lib/powermoon/libmozsqlite3.so: sqlite
+powermoon binary: image-file-in-usr-lib
