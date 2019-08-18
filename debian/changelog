@@ -1,6 +1,7 @@
-powermoon (28.0.0) UNRELEASED; urgency=medium
+powermoon (28.4.1.5D59B353) UNRELEASED; urgency=medium
 
   [ rt1k ]
   * initial port
+  * some code & fix for PPC ported from TenFourFox GIT
 
  -- Roberto Guardato <team@powerprogress.org>  Fri, 15 Aug 2019 18:00:03 +0000
