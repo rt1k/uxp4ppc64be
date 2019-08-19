@@ -1,3 +1,10 @@
+powermoon (28.4.1.5D5A7650) UNRELEASED; urgency=medium
+
+  [ rt1k ]
+  * test some build options
+
+ -- Roberto Guardato <team@powerprogress.org>  Fri, 19 Aug 2019 12:15:00 +0100
+
 powermoon (28.4.1.5D59B353) UNRELEASED; urgency=medium
 
   [ rt1k ]
