@@ -61,7 +61,7 @@ else
 ifeq ($(OS_TEST),x86_64)
 ifeq ($(USE_64),1)
 	CPU_ARCH	= x86_64
-	ARCHFLAG	= -m32
+	ARCHFLAG	= -m64
 else
 ifeq ($(USE_X32),1)
 	CPU_ARCH	= x86_64

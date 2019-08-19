@@ -372,9 +372,9 @@ def check_compiler(compiler, language, target):
                 ('sparc', 'sparc64'),
             )
             if (target.cpu, info.cpu) in same_arch_different_bits:
-                append_flag('-m32')
+                append_flag('-m64')
             elif (info.cpu, target.cpu) in same_arch_different_bits:
-                append_flag('-m32')
+                append_flag('-m64')
 
     if not info.kernel or info.kernel != target.kernel:
         if info.type == 'clang':

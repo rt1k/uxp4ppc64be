@@ -253,16 +253,16 @@ AC_DEFUN([AC_CHECK_64BIT_LIBS],
             #    *FLAGS are assumed to be trashed, and will be reset from *FLAGS_OLD
             
             if test "$GCC" = yes; then
-                CFLAGS="${CFLAGS} -m32"
-                CXXFLAGS="${CXXFLAGS} -m32"
+                CFLAGS="${CFLAGS} -m64"
+                CXXFLAGS="${CXXFLAGS} -m64"
                 AC_COMPILE_IFELSE([AC_LANG_SOURCE([int main(void) {return (sizeof(void*)*8==64)?0:1;}])],
                    CAN_BUILD_64=yes, CAN_BUILD_64=no)
             else
                 case "${host}" in
                 sparc*-*-solaris*)
                     # 1. try -m64
-                    CFLAGS="${CFLAGS} -m32"
-                    CXXFLAGS="${CXXFLAGS} -m32"
+                    CFLAGS="${CFLAGS} -m64"
+                    CXXFLAGS="${CXXFLAGS} -m64"
                     AC_RUN_IFELSE([AC_LANG_SOURCE([int main(void) {return (sizeof(void*)*8==64)?0:1;}])],
                        CAN_BUILD_64=yes, CAN_BUILD_64=no, CAN_BUILD_64=unknown)
                     if test "$CAN_BUILD_64" != yes; then

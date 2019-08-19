@@ -1893,8 +1893,8 @@ tools are selected during the Xcode/Developer Tools installation.])
         ;;
     powerpc64)
         if test -n "$USE_64"; then
-            CC="$CC -m32"
-            CXX="$CXX -m32"
+            CC="$CC -m64"
+            CXX="$CXX -m64"
         else
             PR_MD_ASFILES=os_Linux_ppc.s
         fi
@@ -2333,8 +2333,8 @@ tools are selected during the Xcode/Developer Tools installation.])
     fi
     if test -n "$USE_64"; then
         if test -n "$GNU_CC"; then
-            CC="$CC -m32"
-            CXX="$CXX -m32"
+            CC="$CC -m64"
+            CXX="$CXX -m64"
         else
             if test "$OS_TEST" = "i86pc"; then
                 CC="$CC -xarch=amd64"

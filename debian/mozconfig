@@ -2,15 +2,16 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#original
+#GCC compiler options
 #export CC="gcc -flax-vector-conversions -falign-loops=64 -falign-functions=64 -falign-labels=64 -falign-jumps=64"
 #export CXX="g++ -flax-vector-conversions -fpermissive -falign-loops=64 -falign-functions=64 -falign-labels=64 -falign-jumps=64"
 
-#new
+#Gcc active options
 export CC="gcc -flax-vector-conversions"
 export CXX="g++ -flax-vector-conversions -fpermissive"
-
 export LDFLAGS="-latomic"
+
+#Palemoon specific build options
 #ac_add_options --enable-release
 #ac_add_options  --enable-official-branding
 #export MOZILLA_OFFICIAL=1
@@ -21,32 +22,37 @@ ac_add_options --disable-crashreporter
 ac_add_options --disable-tests
 ac_add_options --disable-debug
 ac_add_options --disable-updater
-ac_add_options --disable-mozril-geoloc
-ac_add_options --disable-webrtc
+
+#try enable geoloc
+#ac_add_options --disable-mozril-geoloc
+
+#try enable WEBRTC
+#ac_add_options --disable-webrtc
+
 ac_add_options --disable-safe-browsing
 ac_add_options --disable-necko-wifi
 
 #try enable EME
-ac_add_options --disable-eme
+#ac_add_options --disable-eme
 
 ac_add_options --disable-gamepad
 ac_add_options --disable-dbus
 ac_add_options --disable-gio
 ac_add_options --disable-pulseaudio
+
+#remove debug info (symbols from executables and libs)
 ac_add_options --enable-strip
 ac_add_options --enable-install-strip
+
 ac_add_options --enable-application=application/palemoon
+
 #ac_add_options --disable-startupcache
-#ac_add_options --with-branding=browser/branding/powermoon
 
 #ac_add_options --enable-optimize="-O3 -mcpu=G5 -fno-schedule-insns2 -fno-lifetime-dse -fno-delete-null-pointer-checks"
 ac_add_options --enable-optimize="-O3 -mcpu=G5"
 
 ac_add_options --disable-jemalloc
 ac_add_options --enable-default-toolkit=cairo-gtk2
-#ac_add_options --enable-optimize=-O2
-#ac_add_options --target=powerpc64-linux-gnu
-#ac_add_options --host=powerpc64-linux-gnu
 
-#test options
+#PPC specific options
 ac_add_options --enable-tenfourfox-vmx

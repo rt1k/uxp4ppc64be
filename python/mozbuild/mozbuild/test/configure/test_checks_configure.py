@@ -326,7 +326,7 @@ class TestChecksConfigure(unittest.TestCase):
         self.assertEqual(config, {'CC': self.KNOWN_B})
         self.assertEqual(out, 'checking for cc... %s\n' % self.KNOWN_B)
 
-        config, out, status = self.get_result(script, ['CC=known-b -m32'])
+        config, out, status = self.get_result(script, ['CC=known-b -m64'])
         self.assertEqual(status, 0)
         self.assertEqual(config, {'CC': self.KNOWN_B})
         self.assertEqual(out, 'checking for cc... %s\n' % self.KNOWN_B)

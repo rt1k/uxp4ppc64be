@@ -64,7 +64,7 @@ build() {
 
 case "$1" in
 32)
-	configure_args='--host=i686-pc-linux --build=i686-pc-linux CC="gcc -m32" CXX="g++ -m32"'
+	configure_args='--host=i686-pc-linux --build=i686-pc-linux CC="gcc -m64" CXX="g++ -m64"'
         lib=lib
 	;;
 *)

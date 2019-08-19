@@ -588,10 +588,10 @@ class LinuxSimpleCrossToolchainTest(BaseToolchainTest):
     def test_cross_gcc(self):
         self.do_toolchain_test(self.PATHS, {
             'c_compiler': self.GCC_4_9_RESULT + {
-                'flags': ['-m32']
+                'flags': ['-m64']
             },
             'cxx_compiler': self.GXX_4_9_RESULT + {
-                'flags': ['-m32']
+                'flags': ['-m64']
             },
             'host_c_compiler': self.GCC_4_9_RESULT,
             'host_cxx_compiler': self.GXX_4_9_RESULT,
@@ -995,7 +995,7 @@ class LinuxCrossCompileToolchainTest(BaseToolchainTest):
                 '__powerpc64__': 1,
                 '__powerpc__': 1,
             },
-            '-m32': {
+            '-m64': {
                 '__powerpc64__': False,
             },
         },
@@ -1054,7 +1054,7 @@ class LinuxCrossCompileToolchainTest(BaseToolchainTest):
             '/usr/bin/g++': GXX_4_9 + self.PLATFORMS[host],
         }
         cross_flags = {
-            'flags': ['-m64' if '64' in target else '-m32']
+            'flags': ['-m64' if '64' in target else '-m64']
         }
         self.do_toolchain_test(paths, {
             'c_compiler': self.GCC_4_9_RESULT + cross_flags,

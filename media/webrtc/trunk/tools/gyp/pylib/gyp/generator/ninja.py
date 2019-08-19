@@ -1971,7 +1971,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
           QuoteShellArgument(path, 'win'))
       if clang_cl:
         # Use clang-cl to cross-compile for x86 or x86_64.
-        command += (' -m32' if arch == 'x86' else ' -m64')
+        command += (' -m64' if arch == 'x86' else ' -m64')
       master_ninja.variable('cl_' + arch, command)
 
   cc = GetEnvironFallback(['CC_target', 'CC'], cc)

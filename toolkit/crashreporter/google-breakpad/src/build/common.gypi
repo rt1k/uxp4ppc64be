@@ -734,11 +734,11 @@
             # -mmmx allows mmintrin.h to be used for mmx intrinsics.
             # video playback is mmx and sse2 optimized.
             'cflags': [
-              '-m32',
+              '-m64',
               '-mmmx',
             ],
             'ldflags': [
-              '-m32',
+              '-m64',
             ],
           }],
           ['target_arch=="arm"', {

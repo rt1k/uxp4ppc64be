@@ -406,14 +406,14 @@ class TestCompilerResult(unittest.TestCase):
             'flags': ['-std=gnu99'],
         })
 
-        result2 = result + {'flags': ['-m32']}
+        result2 = result + {'flags': ['-m64']}
         self.assertEquals(result2.__dict__, {
             'wrapper': [],
             'compiler': mozpath.abspath('/usr/bin/gcc'),
             'version': '4.2.1',
             'type': 'gcc',
             'language': 'C',
-            'flags': ['-std=gnu99', '-m32'],
+            'flags': ['-std=gnu99', '-m64'],
         })
         # Original flags are untouched.
         self.assertEquals(result.flags, ['-std=gnu99'])
@@ -421,7 +421,7 @@ class TestCompilerResult(unittest.TestCase):
         result3 = result + {
             'compiler': '/usr/bin/gcc-4.7',
             'version': '4.7.3',
-            'flags': ['-m32'],
+            'flags': ['-m64'],
         }
         self.assertEquals(result3.__dict__, {
             'wrapper': [],
@@ -429,7 +429,7 @@ class TestCompilerResult(unittest.TestCase):
             'version': '4.7.3',
             'type': 'gcc',
             'language': 'C',
-            'flags': ['-std=gnu99', '-m32'],
+            'flags': ['-std=gnu99', '-m64'],
         })
 
 
